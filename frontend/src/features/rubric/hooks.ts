@@ -12,6 +12,10 @@ export function useRubrics() {
   return useQuery({ queryKey: key, queryFn: rubricApi.list });
 }
 
+export function useActiveRubric() {
+  return useQuery({ queryKey: [...key, "active"], queryFn: rubricApi.active, retry: false });
+}
+
 export function useCreateRubric() {
   const qc = useQueryClient();
   return useMutation({

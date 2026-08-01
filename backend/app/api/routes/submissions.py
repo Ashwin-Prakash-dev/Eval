@@ -190,7 +190,7 @@ def bulk_import(file: UploadFile, db: Session = Depends(get_db), admin: User = D
             db.add(submission)
             db.flush()
             created += 1
-        except Exception as exc:  # noqa: BLE001 - collecting per-row errors for the report
+        except Exception as exc:  # noqa: BLE001
             errors.append(f"Row {line_no}: {exc}")
 
     db.commit()

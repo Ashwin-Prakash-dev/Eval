@@ -1,16 +1,41 @@
 import type { User } from "./auth";
+import type { UserRole } from "./common";
 
 export type JudgeOut = User;
-
-export interface JudgeCreate {
-  username: string;
-  password: string;
-  full_name?: string | null;
-}
 
 export interface JudgeUpdate {
   full_name?: string | null;
   is_active?: boolean | null;
+}
+
+export interface AllowedEmailCreate {
+  email: string;
+  role?: UserRole;
+  full_name?: string | null;
+  note?: string | null;
+}
+
+export interface AllowedEmailUpdate {
+  full_name?: string | null;
+  note?: string | null;
+  is_active?: boolean | null;
+}
+
+export interface AllowedEmailOut {
+  id: number;
+  email: string;
+  role: UserRole;
+  full_name: string | null;
+  note: string | null;
+  is_active: boolean;
+  created_at: string;
+  user: JudgeOut | null;
+}
+
+export interface AllowedEmailBulkResult {
+  created: number;
+  skipped: number;
+  skipped_emails: string[];
 }
 
 export interface JudgeStats {

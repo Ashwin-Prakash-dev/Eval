@@ -88,8 +88,6 @@ def bulk_create(db: Session, pairs: list[tuple[int, int]], assigned_by_id: int |
     return len(pairs)
 
 
-# --- Conflict exclusions -------------------------------------------------
-
 def list_conflicts(db: Session) -> list[ConflictExclusion]:
     return list(db.scalars(select(ConflictExclusion).order_by(ConflictExclusion.created_at.desc())))
 

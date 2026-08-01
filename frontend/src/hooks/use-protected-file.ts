@@ -2,8 +2,6 @@ import { useEffect, useState } from "react";
 
 import { apiClient } from "@/lib/api-client";
 
-/** Fetches a file from an authenticated API endpoint and exposes it as a blob object URL,
- * since <video>/<iframe> src attributes can't carry an Authorization header directly. */
 export function useProtectedFile(path: string | null): { url: string | null; isLoading: boolean; error: boolean } {
   const [url, setUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);

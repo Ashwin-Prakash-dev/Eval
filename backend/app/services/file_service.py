@@ -10,7 +10,7 @@ ALLOWED_EXTENSIONS: dict[str, set[str]] = {
     "video": {".mp4", ".mov", ".webm", ".avi", ".mkv"},
 }
 
-CHUNK_SIZE = 1024 * 1024  # 1 MB
+CHUNK_SIZE = 1024 * 1024
 
 
 def _upload_root() -> Path:

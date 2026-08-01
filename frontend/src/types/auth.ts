@@ -2,7 +2,7 @@ import type { UserRole } from "./common";
 
 export interface User {
   id: number;
-  username: string;
+  email: string;
   full_name: string | null;
   role: UserRole;
   is_active: boolean;
@@ -16,13 +16,17 @@ export interface TokenResponse {
   user: User;
 }
 
-export interface LoginRequest {
-  username: string;
-  password: string;
+export interface OtpRequest {
+  email: string;
 }
 
-export interface RegisterRequest {
-  username: string;
-  password: string;
-  full_name?: string | null;
+export interface OtpRequestResult {
+  detail: string;
+  expires_in_seconds: number;
+  dev_passcode: string | null;
+}
+
+export interface OtpVerifyRequest {
+  email: string;
+  code: string;
 }

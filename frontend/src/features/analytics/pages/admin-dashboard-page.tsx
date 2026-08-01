@@ -51,7 +51,11 @@ export function AdminDashboardPage() {
             <p className="py-8 text-center text-sm text-muted-foreground">No completed reviews yet.</p>
           )}
           {data?.leaderboard_preview.map((entry) => (
-            <div key={entry.submission_id} className="flex items-center justify-between rounded-md border p-3 text-sm">
+            <Link
+              key={entry.submission_id}
+              to={`/admin/submissions/${entry.submission_id}`}
+              className="flex items-center justify-between rounded-md border p-3 text-sm transition-colors hover:bg-accent/40"
+            >
               <div className="flex items-center gap-3">
                 <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 font-semibold text-primary">
                   {entry.rank}
@@ -65,7 +69,7 @@ export function AdminDashboardPage() {
                 {entry.is_flagged && <Badge variant="destructive">Disagreement</Badge>}
                 <span className="text-base font-semibold tabular-nums">{formatScore(entry.overall_score)}</span>
               </div>
-            </div>
+            </Link>
           ))}
         </CardContent>
       </Card>

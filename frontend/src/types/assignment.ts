@@ -6,7 +6,7 @@ export interface AssignmentSubmissionBrief {
 
 export interface AssignmentJudgeBrief {
   id: number;
-  username: string;
+  email: string;
   full_name: string | null;
 }
 

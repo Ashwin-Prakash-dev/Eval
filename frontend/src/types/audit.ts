@@ -1,7 +1,7 @@
 export interface AuditLogOut {
   id: number;
   user_id: number | null;
-  username: string | null;
+  email: string | null;
   action: string;
   entity_type: string;
   entity_id: number | null;

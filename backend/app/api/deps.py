@@ -8,7 +8,7 @@ from app.crud import user as user_crud
 from app.models.enums import UserRole
 from app.models.user import User
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login", auto_error=False)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/verify-otp", auto_error=False)
 
 
 def get_current_user(token: str | None = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
@@ -22,7 +22,7 @@ def get_current_user(token: str | None = Depends(oauth2_scheme), db: Session = D
     payload = decode_access_token(token)
     if not payload or "sub" not in payload:
         raise credentials_error
-    user = user_crud.get_by_username(db, payload["sub"])
+    user = user_crud.get_by_email(db, payload["sub"])
     if not user or not user.is_active:
         raise credentials_error
     return user

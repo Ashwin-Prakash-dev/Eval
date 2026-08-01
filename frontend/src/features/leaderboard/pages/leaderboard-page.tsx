@@ -1,6 +1,7 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { Search, Trophy } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import { DataTable } from "@/components/shared/data-table";
 import { PageHeader } from "@/components/shared/page-header";
@@ -24,6 +25,7 @@ const sortOptions = [
 
 export function LeaderboardPage() {
   const [page, setPage] = useState(1);
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [problemStatementId, setProblemStatementId] = useState("all");
   const [sortBy, setSortBy] = useState("overall_score");
@@ -137,6 +139,7 @@ export function LeaderboardPage() {
         isLoading={isLoading}
         emptyMessage="No completed reviews yet."
         rowClassName={(row) => cn(row.rank <= 3 && "bg-warning/5")}
+        onRowClick={(row) => navigate(`/admin/submissions/${row.submission_id}`)}
       />
 
       {data && data.total_pages > 1 && (

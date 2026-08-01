@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, FileText, Presentation, Upload, Video } from "lucide-react";
-import { useRef } from "react";
+import { ArrowLeft, ChevronDown, ChevronUp, FileText, Presentation, Upload, Video } from "lucide-react";
+import { useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { PdfViewer, PptAsset, VideoPlayer } from "@/components/shared/media-viewer";
@@ -8,9 +8,12 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { evaluationApi } from "@/features/evaluation/api";
-import { formatScore } from "@/lib/utils";
+import { useActiveRubric } from "@/features/rubric/hooks";
+import { cn, formatScore } from "@/lib/utils";
+import type { EvaluationAdminOut } from "@/types/evaluation";
 
 import { submissionsApi } from "../api";
 import { useSubmission, useUploadSubmissionFile } from "../hooks";
@@ -25,6 +28,16 @@ export function SubmissionDetailPage() {
     queryKey: ["evaluations", "submission", submissionId],
     queryFn: () => evaluationApi.forSubmission(submissionId),
   });
+  const { data: rubric } = useActiveRubric();
+  const criterionById = new Map((rubric?.criteria ?? []).map((c) => [c.id, c]));
+
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const toggle = (evaluationId: number) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.has(evaluationId) ? next.delete(evaluationId) : next.add(evaluationId);
+      return next;
+    });
 
   const pptRef = useRef<HTMLInputElement>(null);
   const pdfRef = useRef<HTMLInputElement>(null);
@@ -130,28 +143,90 @@ export function SubmissionDetailPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Judge scores</CardTitle>
+              <CardTitle>Judge evaluations</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-2">
               {!evaluations || evaluations.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No judges assigned yet.</p>
               ) : (
                 evaluations.map((evaluation) => (
-                  <div key={evaluation.id} className="flex items-center justify-between rounded-md border p-3 text-sm">
-                    <div>
-                      <p className="font-medium">{evaluation.judge.full_name || evaluation.judge.username}</p>
-                      <Badge variant={evaluation.status === "completed" ? "success" : "secondary"} className="mt-1">
-                        {evaluation.status.replace("_", " ")}
-                      </Badge>
-                    </div>
-                    <p className="text-lg font-semibold tabular-nums">{formatScore(evaluation.weighted_overall_score)}</p>
-                  </div>
+                  <JudgeEvaluationRow
+                    key={evaluation.id}
+                    evaluation={evaluation}
+                    criterionById={criterionById}
+                    isExpanded={expanded.has(evaluation.id)}
+                    onToggle={() => toggle(evaluation.id)}
+                  />
                 ))
               )}
             </CardContent>
           </Card>
         </div>
       </div>
+    </div>
+  );
+}
+
+function JudgeEvaluationRow({
+  evaluation,
+  criterionById,
+  isExpanded,
+  onToggle,
+}: {
+  evaluation: EvaluationAdminOut;
+  criterionById: Map<number, { name: string; weight: number }>;
+  isExpanded: boolean;
+  onToggle: () => void;
+}) {
+  const hasScores = evaluation.scores.some((s) => s.score !== null);
+
+  return (
+    <div className="rounded-md border text-sm">
+      <button
+        type="button"
+        onClick={onToggle}
+        disabled={!hasScores}
+        className="flex w-full items-center justify-between p-3 text-left disabled:cursor-not-allowed"
+      >
+        <div>
+          <p className="font-medium">{evaluation.judge.full_name || evaluation.judge.email}</p>
+          <Badge variant={evaluation.status === "completed" ? "success" : "secondary"} className="mt-1">
+            {evaluation.status.replace("_", " ")}
+          </Badge>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-lg font-semibold tabular-nums">{formatScore(evaluation.weighted_overall_score)}</span>
+          {hasScores && (isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />)}
+        </div>
+      </button>
+
+      {isExpanded && hasScores && (
+        <div className="space-y-3 border-t p-3">
+          <div className="space-y-2">
+            {evaluation.scores.map((score) => {
+              const criterion = criterionById.get(score.criterion_id);
+              return (
+                <div key={score.criterion_id} className={cn(score.score === null && "opacity-40")}>
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">{criterion?.name ?? `Criterion #${score.criterion_id}`}</span>
+                    <span className="tabular-nums text-muted-foreground">{formatScore(score.score, 0)}/10</span>
+                  </div>
+                  {score.comment && <p className="mt-0.5 text-xs italic text-muted-foreground">"{score.comment}"</p>}
+                </div>
+              );
+            })}
+          </div>
+          {evaluation.overall_comment && (
+            <>
+              <Separator />
+              <div>
+                <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Overall comment</p>
+                <p className="text-sm">{evaluation.overall_comment}</p>
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

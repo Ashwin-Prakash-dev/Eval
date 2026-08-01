@@ -1,15 +1,12 @@
-/** Validated categorical/sequential/status colors — see the dataviz skill's palette reference.
- * Both light and dark columns pass CVD-safe adjacent-pair checks; do not reorder. */
-
 const CATEGORICAL_LIGHT = [
-  "#2a78d6", // blue
-  "#eb6834", // orange
-  "#1baf7a", // aqua
-  "#eda100", // yellow
-  "#e87ba4", // magenta
-  "#008300", // green
-  "#4a3aa7", // violet
-  "#e34948", // red
+  "#2a78d6",
+  "#eb6834",
+  "#1baf7a",
+  "#eda100",
+  "#e87ba4",
+  "#008300",
+  "#4a3aa7",
+  "#e34948",
 ];
 
 const CATEGORICAL_DARK = [

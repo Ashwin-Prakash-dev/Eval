@@ -61,7 +61,7 @@ def get_submission_distribution(db: Session) -> list[SubmissionDistributionPoint
 
 
 def get_judge_progress(db: Session) -> list[JudgeProgressPoint]:
-    judges = list(db.scalars(select(User).where(User.role == UserRole.JUDGE).order_by(User.username)))
+    judges = list(db.scalars(select(User).where(User.role == UserRole.JUDGE).order_by(User.email)))
     points = []
     for judge in judges:
         total = db.scalar(select(func.count()).select_from(Assignment).where(Assignment.judge_id == judge.id)) or 0
@@ -76,7 +76,7 @@ def get_judge_progress(db: Session) -> list[JudgeProgressPoint]:
         points.append(
             JudgeProgressPoint(
                 judge_id=judge.id,
-                judge_name=judge.full_name or judge.username,
+                judge_name=judge.display_name,
                 completed=completed,
                 pending=max(total - completed, 0),
                 total=total,

@@ -64,7 +64,7 @@ def build_csv(db: Session) -> bytes:
     for js in data["judge_stats"]:
         writer.writerow(
             [
-                js.judge.full_name or js.judge.username,
+                js.judge.display_name,
                 js.reviews_assigned,
                 js.reviews_completed,
                 js.reviews_pending,
@@ -128,7 +128,7 @@ def build_xlsx(db: Session) -> bytes:
     for js in data["judge_stats"]:
         ws3.append(
             [
-                js.judge.full_name or js.judge.username,
+                js.judge.display_name,
                 js.reviews_assigned,
                 js.reviews_completed,
                 js.reviews_pending,
@@ -200,7 +200,7 @@ def build_pdf(db: Session) -> bytes:
         ["Judge", "Assigned", "Completed", "Avg Score", "Std Dev", "Flags"],
         [
             [
-                js.judge.full_name or js.judge.username,
+                js.judge.display_name,
                 js.reviews_assigned,
                 js.reviews_completed,
                 f"{js.average_score_given:.2f}" if js.average_score_given is not None else "-",

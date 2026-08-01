@@ -24,7 +24,7 @@ export function ConflictsDialog({ open, onOpenChange }: { open: boolean; onOpenC
   const submissionTitle = (id: number) => submissions?.items.find((s) => s.id === id)?.project_title ?? `#${id}`;
   const judgeName = (id: number) => {
     const judge = judges?.find((j) => j.id === id);
-    return judge?.full_name || judge?.username || `#${id}`;
+    return judge?.full_name || judge?.email || `#${id}`;
   };
 
   const handleAdd = () => {
@@ -64,7 +64,7 @@ export function ConflictsDialog({ open, onOpenChange }: { open: boolean; onOpenC
               <SelectContent>
                 {judges?.map((j) => (
                   <SelectItem key={j.id} value={String(j.id)}>
-                    {j.full_name || j.username}
+                    {j.full_name || j.email}
                   </SelectItem>
                 ))}
               </SelectContent>

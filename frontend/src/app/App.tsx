@@ -21,7 +21,6 @@ import { NotFoundPage } from "./not-found-page";
 import { ProtectedRoute } from "./protected-route";
 
 const LoginPage = lazy(() => import("@/features/auth/pages/login-page").then((m) => ({ default: m.LoginPage })));
-const RegisterPage = lazy(() => import("@/features/auth/pages/register-page").then((m) => ({ default: m.RegisterPage })));
 const AdminDashboardPage = lazy(() =>
   import("@/features/analytics/pages/admin-dashboard-page").then((m) => ({ default: m.AdminDashboardPage }))
 );
@@ -82,7 +81,6 @@ export function App() {
       <Routes>
         <Route path="/" element={<HomeRedirect />} />
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
 
         <Route element={<ProtectedRoute role="admin" />}>
           <Route element={<AppShell navItems={adminNav} brand="Eval Admin" pageTitle="Administrator console" />}>

@@ -1,3 +1,4 @@
+import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -8,15 +9,21 @@ from jwt import PyJWTError
 from app.core.config import settings
 
 
-def hash_password(plain_password: str) -> str:
-    return bcrypt.hashpw(plain_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+def hash_secret(plain_secret: str) -> str:
+    return bcrypt.hashpw(plain_secret.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
-def verify_password(plain_password: str, password_hash: str) -> bool:
+def verify_secret(plain_secret: str, secret_hash: str) -> bool:
     try:
-        return bcrypt.checkpw(plain_password.encode("utf-8"), password_hash.encode("utf-8"))
+        return bcrypt.checkpw(plain_secret.encode("utf-8"), secret_hash.encode("utf-8"))
     except ValueError:
         return False
+
+
+def generate_numeric_code(length: int) -> str:
+    """Cryptographically secure, zero-padded so every code is exactly `length` digits."""
+    upper_bound = 10**length
+    return str(secrets.randbelow(upper_bound)).zfill(length)
 
 
 def create_access_token(subject: str, role: str, expires_minutes: int | None = None) -> str:

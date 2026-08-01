@@ -67,7 +67,7 @@ export function ManualAssignmentDialog({ open, onOpenChange }: { open: boolean; 
               <SelectContent>
                 {judges?.filter((j) => j.is_active).map((j) => (
                   <SelectItem key={j.id} value={String(j.id)}>
-                    {j.full_name || j.username}
+                    {j.full_name || j.email}
                   </SelectItem>
                 ))}
               </SelectContent>

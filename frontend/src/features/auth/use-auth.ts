@@ -4,7 +4,7 @@ import { toast } from "sonner";
 
 import { apiErrorMessage } from "@/lib/api-client";
 import { useAuthStore } from "@/store/auth-store";
-import type { LoginRequest, RegisterRequest } from "@/types/auth";
+import type { OtpRequest, OtpVerifyRequest } from "@/types/auth";
 
 import { authApi } from "./api";
 
@@ -12,33 +12,25 @@ export function useAuthedUser() {
   return useAuthStore((s) => s.user);
 }
 
-export function useLogin() {
-  const setSession = useAuthStore((s) => s.setSession);
-  const navigate = useNavigate();
-
+export function useRequestOtp() {
   return useMutation({
-    mutationFn: (payload: LoginRequest) => authApi.login(payload),
-    onSuccess: (data) => {
-      setSession(data.access_token, data.user);
-      toast.success(`Welcome back, ${data.user.full_name || data.user.username}`);
-      navigate(data.user.role === "admin" ? "/admin/dashboard" : "/judge/dashboard");
-    },
-    onError: (error) => toast.error(apiErrorMessage(error, "Login failed")),
+    mutationFn: (payload: OtpRequest) => authApi.requestOtp(payload),
+    onError: (error) => toast.error(apiErrorMessage(error, "Could not send a passcode")),
   });
 }
 
-export function useRegister() {
+export function useVerifyOtp() {
   const setSession = useAuthStore((s) => s.setSession);
   const navigate = useNavigate();
 
   return useMutation({
-    mutationFn: (payload: RegisterRequest) => authApi.register(payload),
+    mutationFn: (payload: OtpVerifyRequest) => authApi.verifyOtp(payload),
     onSuccess: (data) => {
       setSession(data.access_token, data.user);
-      toast.success("Account created — you're all set to start judging");
-      navigate("/judge/dashboard");
+      toast.success(`Welcome, ${data.user.full_name || data.user.email}`);
+      navigate(data.user.role === "admin" ? "/admin/dashboard" : "/judge/dashboard");
     },
-    onError: (error) => toast.error(apiErrorMessage(error, "Registration failed")),
+    onError: (error) => toast.error(apiErrorMessage(error, "Could not verify that passcode")),
   });
 }
 

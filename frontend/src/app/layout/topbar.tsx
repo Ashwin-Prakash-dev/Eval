@@ -44,12 +44,12 @@ export function Topbar({ title }: { title: string }) {
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2 rounded-md p-1 outline-none transition-colors hover:bg-accent">
             <Avatar className="h-7 w-7">
-              <AvatarFallback>{initials(user?.full_name || user?.username || "?")}</AvatarFallback>
+              <AvatarFallback>{initials(user?.full_name || user?.email || "?")}</AvatarFallback>
             </Avatar>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>
-              <p className="truncate">{user?.full_name || user?.username}</p>
+              <p className="truncate">{user?.full_name || user?.email}</p>
               <p className="truncate text-xs font-normal text-muted-foreground">{user?.role}</p>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />

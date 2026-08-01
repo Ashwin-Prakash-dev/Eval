@@ -1,19 +1,23 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 
 from app.models.enums import UserRole
 
 
-class RegisterRequest(BaseModel):
-    username: str = Field(min_length=3, max_length=64, pattern=r"^[a-zA-Z0-9_.-]+$")
-    password: str = Field(min_length=6, max_length=128)
-    full_name: str | None = Field(default=None, max_length=120)
+class OtpRequest(BaseModel):
+    email: EmailStr
 
 
-class LoginRequest(BaseModel):
-    username: str
-    password: str
+class OtpRequestResult(BaseModel):
+    detail: str
+    expires_in_seconds: int
+    dev_passcode: str | None = None
+
+
+class OtpVerifyRequest(BaseModel):
+    email: EmailStr
+    code: str = Field(min_length=4, max_length=12)
 
 
 class TokenResponse(BaseModel):
@@ -24,7 +28,7 @@ class TokenResponse(BaseModel):
 
 class UserOut(BaseModel):
     id: int
-    username: str
+    email: str
     full_name: str | None
     role: UserRole
     is_active: bool

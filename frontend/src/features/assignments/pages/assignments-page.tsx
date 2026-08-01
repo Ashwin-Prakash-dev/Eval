@@ -42,7 +42,7 @@ export function AssignmentsPage() {
     },
     {
       header: "Judge",
-      cell: ({ row }) => row.original.judge.full_name || row.original.judge.username,
+      cell: ({ row }) => row.original.judge.full_name || row.original.judge.email,
     },
     {
       header: "Source",
@@ -105,7 +105,7 @@ export function AssignmentsPage() {
         open={!!removing}
         onOpenChange={(open) => !open && setRemoving(null)}
         title="Remove assignment?"
-        description={`${removing?.judge.full_name || removing?.judge.username} will no longer review "${removing?.submission.project_title}". Any progress they made will be deleted.`}
+        description={`${removing?.judge.full_name || removing?.judge.email} will no longer review "${removing?.submission.project_title}". Any progress they made will be deleted.`}
         confirmLabel="Remove"
         isLoading={deleteMutation.isPending}
         onConfirm={() => removing && deleteMutation.mutate(removing.id, { onSuccess: () => setRemoving(null) })}

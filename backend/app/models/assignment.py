@@ -14,7 +14,7 @@ class Assignment(Base):
     submission_id: Mapped[int] = mapped_column(ForeignKey("submissions.id", ondelete="CASCADE"), nullable=False)
     judge_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     assigned_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    source: Mapped[str] = mapped_column(String(16), default="auto", nullable=False)  # "auto" | "manual"
+    source: Mapped[str] = mapped_column(String(16), default="auto", nullable=False)
     assigned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     submission: Mapped["Submission"] = relationship(back_populates="assignments")

@@ -19,14 +19,16 @@ The two are fully decoupled — the frontend only talks to the backend over
 ```
 backend/
   app/
-    core/        config, database session, JWT/password helpers
-    models/      SQLAlchemy models (Users, Submissions, Rubrics, Criteria,
+    core/        config, database session, JWT/hashing helpers
+    models/      SQLAlchemy models (Users, AllowedEmails, OtpCodes, Submissions,
+                 ProblemStatements, Rubrics, Criteria,
                  Assignments, ConflictExclusions, Evaluations, EvaluationScores,
                  Comments, SubmissionScore, AuditLogs)
     schemas/     Pydantic request/response schemas
     crud/        thin data-access layer, one module per entity
-    services/    business logic: auth, file storage, assignment generator,
-                 scoring engine, analytics/leaderboard aggregation, export
+    services/    business logic: auth (passcodes), email delivery, file storage,
+                 assignment generator, scoring engine, analytics/leaderboard
+                 aggregation, export
     api/routes/  FastAPI routers, one per resource
   alembic/       migrations
   seed.py        seeds the admin account + a default rubric
@@ -44,26 +46,65 @@ docker-compose.yml   Postgres + backend + frontend (nginx), for a full local sta
 
 ## Quick start (local dev, SQLite, zero infrastructure)
 
+**One-time setup:**
+
 ```bash
-# Backend
 cd backend
 python -m venv venv
 venv\Scripts\activate           # source venv/bin/activate on macOS/Linux
 pip install -r requirements.txt
 copy .env.example .env          # cp on macOS/Linux — sqlite:///./dev.db works out of the box
 alembic upgrade head
-python seed.py                  # creates the admin account + default rubric
-uvicorn app.main:app --reload --port 8000
+python seed.py                  # approves the admin email + creates the default rubric
 
-# Frontend (separate terminal)
-cd frontend
+cd ../frontend
 npm install
-npm run dev                     # http://localhost:5173, proxies /api to :8000
+
+cd ..
+npm install                     # root-level, just installs `concurrently`
 ```
 
-Log in with the seeded admin account: **admin / ChangeMe123!** — change
-`ADMIN_PASSWORD` in `.env` before any real use. Every other account created via
-the Register page becomes a Judge.
+**Every time after that**, from the repo root:
+
+```bash
+npm run dev
+```
+
+This runs both servers in one terminal (backend on `:8000`, frontend on
+`:5173`, labeled `[BACKEND]`/`[FRONTEND]`). `npm run dev:backend` /
+`npm run dev:frontend` run just one half if you'd rather use two terminals —
+the root `package.json` only wires the two together with `concurrently`; the
+`backend\venv\Scripts\python.exe` path in `dev:backend` is Windows-specific, so
+on macOS/Linux either run the two `uvicorn`/`npm run dev` commands in separate
+terminals as shown above, or point that script at `backend/venv/bin/python`.
+
+Sign in with the seeded administrator address (`ADMIN_EMAIL`, default
+`admin@example.com`). There are no passwords — see below.
+
+## Authentication: approved emails + one-time passcodes
+
+There is no password anywhere in the system and no self-registration.
+
+1. An administrator approves an email address on the **Judges & access** page
+   (singly or in bulk), choosing whether it gets the Judge or Admin role.
+2. That person enters their email on the sign-in screen and receives a 6-digit
+   passcode by email.
+3. Entering the passcode signs them in. Their account row is created
+   automatically on that first sign-in — the approved-email list is always the
+   authority on who may access the tool and with what role.
+
+Guardrails: passcodes are stored only as bcrypt hashes, expire after 10 minutes,
+are single-use, are invalidated when a newer one is issued, lock out after 5 wrong
+attempts, and are rate-limited (60s between sends, 5/hour per address). Revoking
+an approved email immediately deactivates the account, so any live JWT stops
+working on its next request. All of these are configurable in `.env`.
+
+> **Local development without a mail server.** If `SMTP_HOST` is unset, the
+> passcode is written to the server log *and returned in the sign-in API
+> response* so you can log in with zero setup — the login screen surfaces it as
+> a toast. That means anyone who can reach the API can sign in as any approved
+> address, so **set `SMTP_HOST` before exposing this to a network.** Once SMTP is
+> configured the passcode is emailed and never appears in the response.
 
 ## Running against real PostgreSQL
 

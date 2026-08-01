@@ -26,7 +26,7 @@ def list_audit_logs(
         AuditLogOut(
             id=log.id,
             user_id=log.user_id,
-            username=log.user.username if log.user else None,
+            email=log.user.email if log.user else None,
             action=log.action,
             entity_type=log.entity_type,
             entity_id=log.entity_id,

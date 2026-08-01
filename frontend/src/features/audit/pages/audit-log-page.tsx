@@ -45,7 +45,7 @@ export function AuditLogPage() {
     },
     {
       header: "User",
-      cell: ({ row }) => row.original.username ?? <span className="text-muted-foreground">system</span>,
+      cell: ({ row }) => row.original.email ?? <span className="text-muted-foreground">system</span>,
     },
     {
       header: "Action",
