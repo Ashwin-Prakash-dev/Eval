@@ -46,7 +46,7 @@ export function RubricPage() {
     <div>
       <PageHeader
         title="Evaluation rubric"
-        description="Define scoring criteria and weights — weights must total 100%"
+        description=""
         actions={
           <Button
             onClick={() => {

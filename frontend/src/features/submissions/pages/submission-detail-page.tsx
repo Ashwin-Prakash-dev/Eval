@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { evaluationApi } from "@/features/evaluation/api";
 import { useActiveRubric } from "@/features/rubric/hooks";
 import { cn, formatScore } from "@/lib/utils";
+import type { FileKind } from "@/types/common";
 import type { EvaluationAdminOut } from "@/types/evaluation";
 
 import { submissionsApi } from "../api";
@@ -35,7 +36,11 @@ export function SubmissionDetailPage() {
   const toggle = (evaluationId: number) =>
     setExpanded((prev) => {
       const next = new Set(prev);
-      next.has(evaluationId) ? next.delete(evaluationId) : next.add(evaluationId);
+      if (next.has(evaluationId)) {
+        next.delete(evaluationId);
+      } else {
+        next.add(evaluationId);
+      }
       return next;
     });
 
@@ -43,7 +48,7 @@ export function SubmissionDetailPage() {
   const pdfRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLInputElement>(null);
 
-  const handleUpload = (kind: "ppt" | "pdf" | "video") => (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUpload = (kind: FileKind) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) uploadMutation.mutate({ kind, file });
     e.target.value = "";

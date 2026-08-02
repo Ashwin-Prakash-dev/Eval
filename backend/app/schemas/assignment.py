@@ -5,7 +5,6 @@ from pydantic import BaseModel, Field
 
 class GenerateAssignmentsRequest(BaseModel):
     judges_per_submission: int = Field(gt=0, le=50)
-    reviews_per_judge: int | None = Field(default=None, gt=0)
     reset_existing: bool = Field(
         default=False, description="If true, delete all existing assignments before generating new ones."
     )

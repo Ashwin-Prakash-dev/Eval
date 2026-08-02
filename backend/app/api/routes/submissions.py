@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import require_admin
 from app.core.database import get_db
-from app.crud import assignment as assignment_crud
 from app.crud import audit as audit_crud
 from app.crud import problem_statement as ps_crud
 from app.crud import submission as submission_crud

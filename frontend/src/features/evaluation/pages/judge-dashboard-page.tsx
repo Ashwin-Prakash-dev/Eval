@@ -9,16 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EVALUATION_STATUS_BADGE } from "@/lib/evaluation-status";
 import { formatScore } from "@/lib/utils";
-import type { EvaluationStatus } from "@/types/common";
 
 import { useAssignedEvaluations, useJudgeProgress } from "../hooks";
-
-const statusBadge: Record<EvaluationStatus, { label: string; variant: "success" | "secondary" | "outline" }> = {
-  completed: { label: "Completed", variant: "success" },
-  in_progress: { label: "In progress", variant: "secondary" },
-  not_started: { label: "Not started", variant: "outline" },
-};
 
 export function JudgeDashboardPage() {
   const navigate = useNavigate();
@@ -94,7 +88,9 @@ export function JudgeDashboardPage() {
                   {evaluation.weighted_overall_score !== null && (
                     <span className="text-sm font-semibold tabular-nums">{formatScore(evaluation.weighted_overall_score)}</span>
                   )}
-                  <Badge variant={statusBadge[evaluation.status].variant}>{statusBadge[evaluation.status].label}</Badge>
+                  <Badge variant={EVALUATION_STATUS_BADGE[evaluation.status].variant}>
+                    {EVALUATION_STATUS_BADGE[evaluation.status].label}
+                  </Badge>
                 </div>
               </CardContent>
             </Card>

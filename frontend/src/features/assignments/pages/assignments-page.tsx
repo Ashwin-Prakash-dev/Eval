@@ -8,18 +8,14 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { EVALUATION_STATUS_BADGE } from "@/lib/evaluation-status";
 import type { AssignmentOut } from "@/types/assignment";
+import type { EvaluationStatus } from "@/types/common";
 
 import { ConflictsDialog } from "../components/conflicts-dialog";
 import { GenerateAssignmentsDialog } from "../components/generate-assignments-dialog";
 import { ManualAssignmentDialog } from "../components/manual-assignment-dialog";
 import { useAssignments, useDeleteAssignment } from "../hooks";
-
-const statusVariant: Record<string, "success" | "secondary" | "outline"> = {
-  completed: "success",
-  in_progress: "secondary",
-  not_started: "outline",
-};
 
 export function AssignmentsPage() {
   const { data: assignments, isLoading } = useAssignments();
@@ -51,7 +47,11 @@ export function AssignmentsPage() {
     {
       header: "Evaluation status",
       cell: ({ row }) => (
-        <Badge variant={statusVariant[row.original.evaluation_status] ?? "outline"}>
+        <Badge
+          variant={
+            EVALUATION_STATUS_BADGE[row.original.evaluation_status as EvaluationStatus]?.variant ?? "outline"
+          }
+        >
           {row.original.evaluation_status.replace("_", " ")}
         </Badge>
       ),

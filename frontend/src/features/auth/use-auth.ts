@@ -8,10 +8,6 @@ import type { OtpRequest, OtpVerifyRequest } from "@/types/auth";
 
 import { authApi } from "./api";
 
-export function useAuthedUser() {
-  return useAuthStore((s) => s.user);
-}
-
 export function useRequestOtp() {
   return useMutation({
     mutationFn: (payload: OtpRequest) => authApi.requestOtp(payload),

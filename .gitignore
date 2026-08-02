@@ -1,15 +1,26 @@
-# Backend
-backend/venv/
-backend/__pycache__/
-backend/**/__pycache__/
-backend/*.db
-backend/uploads/
-backend/.env
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
 
-# Frontend
-frontend/node_modules/
-frontend/dist/
+# Backend data & secrets
+*.db
+*.db-journal
+*.db.bak*
+backend/uploads/
+.env
+
+# Node
+node_modules/
+dist/
+*.tsbuildinfo
 
 # OS / editor
 .DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
 *.log

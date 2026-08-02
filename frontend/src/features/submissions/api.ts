@@ -1,5 +1,5 @@
 import { apiClient } from "@/lib/api-client";
-import type { Page } from "@/types/common";
+import type { FileKind, Page } from "@/types/common";
 import type {
   BulkImportResult,
   ProblemStatement,
@@ -25,7 +25,7 @@ export const submissionsApi = {
   update: (id: number, payload: SubmissionUpdate) =>
     apiClient.patch<SubmissionOut>(`/submissions/${id}`, payload).then((r) => r.data),
   remove: (id: number) => apiClient.delete(`/submissions/${id}`),
-  uploadFile: (id: number, kind: "ppt" | "pdf" | "video", file: File) => {
+  uploadFile: (id: number, kind: FileKind, file: File) => {
     const form = new FormData();
     form.append("file", file);
     return apiClient
@@ -41,7 +41,7 @@ export const submissionsApi = {
       .post<BulkImportResult>("/submissions/bulk-import", form, { headers: { "Content-Type": "multipart/form-data" } })
       .then((r) => r.data);
   },
-  fileUrl: (id: number, kind: "ppt" | "pdf" | "video") => `/submissions/${id}/file/${kind}`,
+  fileUrl: (id: number, kind: FileKind) => `/submissions/${id}/file/${kind}`,
 };
 
 export const problemStatementsApi = {

@@ -76,16 +76,6 @@ class SubmissionJudgeOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class BulkImportRow(BaseModel):
-    project_title: str
-    team_identifier: str
-    problem_statement_code: str | None = None
-    short_description: str = ""
-    additional_notes: str | None = None
-    video_type: VideoType = VideoType.YOUTUBE
-    video_url: str | None = None
-
-
 class BulkImportResult(BaseModel):
     created: int
     failed: int

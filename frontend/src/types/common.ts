@@ -9,3 +9,4 @@ export interface Page<T> {
 export type VideoType = "upload" | "youtube" | "vimeo";
 export type EvaluationStatus = "not_started" | "in_progress" | "completed";
 export type UserRole = "admin" | "judge";
+export type FileKind = "ppt" | "pdf" | "video";

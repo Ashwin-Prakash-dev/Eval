@@ -61,7 +61,3 @@ def set_file_path(db: Session, submission: Submission, field: str, path: str) ->
     db.commit()
     db.refresh(submission)
     return submission
-
-
-def count_all(db: Session) -> int:
-    return db.scalar(select(func.count()).select_from(Submission)) or 0

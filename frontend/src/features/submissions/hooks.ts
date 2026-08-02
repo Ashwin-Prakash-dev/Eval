@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { apiErrorMessage } from "@/lib/api-client";
+import type { FileKind } from "@/types/common";
 import type { SubmissionCreate, SubmissionUpdate } from "@/types/submission";
 
 import { problemStatementsApi, submissionsApi, type SubmissionListParams } from "./api";
@@ -63,7 +64,7 @@ export function useDeleteSubmission() {
 export function useUploadSubmissionFile(id: number) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ kind, file }: { kind: "ppt" | "pdf" | "video"; file: File }) => submissionsApi.uploadFile(id, kind, file),
+    mutationFn: ({ kind, file }: { kind: FileKind; file: File }) => submissionsApi.uploadFile(id, kind, file),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: submissionKeys.detail(id) });
       toast.success("File uploaded");

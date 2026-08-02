@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 interface DataTableProps<TData> {
-  columns: ColumnDef<TData, any>[];
+  columns: ColumnDef<TData, unknown>[];
   data: TData[];
   isLoading?: boolean;
   emptyMessage?: string;

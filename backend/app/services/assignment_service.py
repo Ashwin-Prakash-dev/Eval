@@ -74,15 +74,6 @@ def generate_assignments(
             load[jid] += 1
             assigned_by_submission.setdefault(sid, set()).add(jid)
 
-    if request.reviews_per_judge:
-        total_slots = sum(load.values())
-        expected_avg = total_slots / len(judge_ids)
-        if abs(expected_avg - request.reviews_per_judge) > 1:
-            warnings.append(
-                f"Requested {request.reviews_per_judge} reviews/judge, but the balanced load given the "
-                f"current submission/judge counts averages {expected_avg:.1f} per judge."
-            )
-
     created = assignment_crud.bulk_create(db, new_pairs, generated_by_id)
 
     final_loads = list(load.values())

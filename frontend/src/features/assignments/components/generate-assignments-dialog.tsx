@@ -19,7 +19,6 @@ import { useGenerateAssignments } from "../hooks";
 
 const schema = z.object({
   judges_per_submission: z.coerce.number().int().min(1).max(50),
-  reviews_per_judge: z.coerce.number().int().min(1).optional(),
   reset_existing: z.boolean(),
 });
 type FormValues = z.infer<typeof schema>;
@@ -49,15 +48,9 @@ export function GenerateAssignmentsDialog({ open, onOpenChange }: { open: boolea
           )}
           className="space-y-4"
         >
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="judges_per_submission">Judges per submission</Label>
-              <Input id="judges_per_submission" type="number" min={1} {...register("judges_per_submission")} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="reviews_per_judge">Target reviews per judge (optional)</Label>
-              <Input id="reviews_per_judge" type="number" min={1} {...register("reviews_per_judge")} />
-            </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="judges_per_submission">Judges per submission</Label>
+            <Input id="judges_per_submission" type="number" min={1} {...register("judges_per_submission")} />
           </div>
           <div className="flex items-center justify-between rounded-md border p-3">
             <div>

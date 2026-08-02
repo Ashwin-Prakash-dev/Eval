@@ -21,7 +21,6 @@ export interface AssignmentOut {
 
 export interface GenerateAssignmentsRequest {
   judges_per_submission: number;
-  reviews_per_judge?: number | null;
   reset_existing: boolean;
 }
 
