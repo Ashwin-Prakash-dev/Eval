@@ -1,0 +1,56 @@
+name = "eval-api"
+main = "src/index.ts"
+compatibility_date = "2026-08-03"
+compatibility_flags = ["nodejs_compat"]
+
+# Run `wrangler d1 create eval-db` and paste the returned id into database_id.
+[[d1_databases]]
+binding = "DB"
+database_name = "eval-db"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+migrations_dir = "migrations"
+
+# Run `wrangler r2 bucket create eval-uploads`.
+[[r2_buckets]]
+binding = "UPLOADS"
+bucket_name = "eval-uploads"
+
+[vars]
+APP_NAME = "Hackathon Evaluation Platform"
+ENVIRONMENT = "development"
+ACCESS_TOKEN_EXPIRE_MINUTES = "10080"
+ADMIN_EMAIL = "admin@example.com"
+ADMIN_FULL_NAME = "Administrator"
+OTP_LENGTH = "6"
+OTP_TTL_MINUTES = "10"
+OTP_MAX_ATTEMPTS = "5"
+OTP_RESEND_COOLDOWN_SECONDS = "60"
+OTP_MAX_REQUESTS_PER_HOUR = "5"
+# Workers caps the inbound request body at 100MB on Free/Pro, so the previous 300MB
+# ceiling is not reachable while uploads are proxied through the Worker.
+MAX_UPLOAD_SIZE_MB = "100"
+BREVO_FROM_EMAIL = "no-reply@your-domain.com"
+BREVO_FROM_NAME = "Hackathon Evaluation Platform"
+CORS_ORIGINS = '["http://localhost:5173","http://127.0.0.1:5173"]'
+
+# Secrets are never stored here. Set them with `wrangler secret put <NAME>`, and for local
+# development put them in workers/.dev.vars (gitignored):
+#   JWT_SECRET_KEY  - HS256 signing key for access tokens
+#   OTP_PEPPER      - server-side key for the HMAC-SHA256 passcode hash
+#   BREVO_API_KEY   - Brevo transactional email API key; unset means dev passcode echo
+
+[env.production.vars]
+APP_NAME = "Hackathon Evaluation Platform"
+ENVIRONMENT = "production"
+ACCESS_TOKEN_EXPIRE_MINUTES = "10080"
+ADMIN_EMAIL = "admin@example.com"
+ADMIN_FULL_NAME = "Administrator"
+OTP_LENGTH = "6"
+OTP_TTL_MINUTES = "10"
+OTP_MAX_ATTEMPTS = "5"
+OTP_RESEND_COOLDOWN_SECONDS = "60"
+OTP_MAX_REQUESTS_PER_HOUR = "5"
+MAX_UPLOAD_SIZE_MB = "100"
+BREVO_FROM_EMAIL = "no-reply@your-domain.com"
+BREVO_FROM_NAME = "Hackathon Evaluation Platform"
+CORS_ORIGINS = '["https://your-frontend-domain"]'
