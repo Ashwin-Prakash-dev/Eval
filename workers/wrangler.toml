@@ -7,7 +7,7 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "eval-db"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "8d4ba3f0-6a40-4f49-be7b-39ece8ba2c62"
 migrations_dir = "migrations"
 
 # Run `wrangler r2 bucket create eval-uploads`.
