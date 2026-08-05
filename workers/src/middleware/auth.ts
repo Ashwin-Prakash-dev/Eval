@@ -20,9 +20,14 @@ const credentialsError = () =>
   new ApiError(401, "Could not validate credentials", { "WWW-Authenticate": "Bearer" });
 
 export const requireUser = createMiddleware<AppEnv>(async (c, next) => {
+  // FastAPI's OAuth2PasswordBearer splits on the first space and lowercases the scheme
+  // (RFC 7235 makes it case-insensitive), passing the credential through verbatim. A
+  // case-sensitive startsWith would 401 a valid `authorization: bearer <token>`.
   const header = c.req.header("Authorization") ?? "";
-  const token = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
-  if (!token) throw credentialsError();
+  const separator = header.indexOf(" ");
+  const scheme = separator === -1 ? header : header.slice(0, separator);
+  const token = separator === -1 ? "" : header.slice(separator + 1);
+  if (!header || scheme.toLowerCase() !== "bearer" || !token) throw credentialsError();
 
   const payload = await decodeAccessToken(token, c.env.JWT_SECRET_KEY);
   if (!payload?.sub) throw credentialsError();

@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 
 import type { User } from "../db";
+import { parseOrThrow, readJson } from "../lib/validate";
 import { requireUser, type AppEnv } from "../middleware/auth";
 import * as auditRepo from "../repo/audit";
 import { otpRequestSchema, otpVerifySchema } from "../schemas/auth";
@@ -22,12 +23,12 @@ export function userOut(user: User) {
 export const authRoutes = new Hono<AppEnv>();
 
 authRoutes.post("/request-otp", async (c) => {
-  const payload = otpRequestSchema.parse(await c.req.json());
+  const payload = parseOrThrow(otpRequestSchema, await readJson(c.req), "body");
   return c.json(await authService.requestOtp(c.env, payload.email));
 });
 
 authRoutes.post("/verify-otp", async (c) => {
-  const payload = otpVerifySchema.parse(await c.req.json());
+  const payload = parseOrThrow(otpVerifySchema, await readJson(c.req), "body");
   const { user, token } = await authService.verifyOtp(c.env, payload.email, payload.code);
   await auditRepo.create(c.env.DB, user.id, "login", "user", user.id, { email: user.email });
   return c.json({ access_token: token, token_type: "bearer", user: userOut(user) });

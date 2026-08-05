@@ -3,9 +3,11 @@ import { cors } from "hono/cors";
 import { ZodError } from "zod";
 
 import { getSettings } from "./env";
-import { ApiError } from "./http";
+import { ApiError, ValidationError } from "./http";
 import type { AppEnv } from "./middleware/auth";
 import { authRoutes } from "./routes/auth";
+import { problemStatementRoutes } from "./routes/problem_statements";
+import { submissionRoutes } from "./routes/submissions";
 
 const app = new Hono<AppEnv>();
 
@@ -24,14 +26,17 @@ app.onError((err, c) => {
   if (err instanceof ApiError) {
     return c.json({ detail: err.message }, err.status as 400, err.headers);
   }
+  // 422 with a per-field detail array, matching FastAPI's RequestValidationError handler.
+  if (err instanceof ValidationError) {
+    return c.json({ detail: err.details }, 422);
+  }
+  // A ZodError reaching here means a schema was parsed outside parseOrThrow; still report
+  // it as a 422 rather than letting it fall through to a 500.
   if (err instanceof ZodError) {
     return c.json(
-      { detail: err.errors.map((e) => ({ loc: e.path, msg: e.message, type: e.code })) },
+      { detail: err.errors.map((e) => ({ type: e.code, loc: ["body", ...e.path], msg: e.message })) },
       422
     );
-  }
-  if (err instanceof SyntaxError) {
-    return c.json({ detail: "Invalid JSON body" }, 400);
   }
   console.error(JSON.stringify({ message: "Unhandled error", error: String(err) }));
   return c.json({ detail: "Internal Server Error" }, 500);
@@ -46,6 +51,8 @@ app.get("/health", (c) => {
 
 const api = new Hono<AppEnv>();
 api.route("/auth", authRoutes);
+api.route("/problem-statements", problemStatementRoutes);
+api.route("/submissions", submissionRoutes);
 
 app.route("/api", api);
 
