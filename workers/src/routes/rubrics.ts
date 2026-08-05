@@ -62,7 +62,13 @@ rubricRoutes.patch("/:rubric_id", requireAdmin, async (c) => {
   }
   if (Object.prototype.hasOwnProperty.call(body, "is_active")) patch.is_active = payload.is_active;
 
-  const updated = await rubricRepo.update(c.env.DB, rubricId, patch, payload.criteria);
+  // A null criteria is a no-op, matching `if data.criteria is not None` in the CRUD layer.
+  const updated = await rubricRepo.update(
+    c.env.DB,
+    rubricId,
+    patch,
+    payload.criteria ?? undefined
+  );
   if (!updated) throw notFound("Rubric not found");
 
   const admin = c.get("user");

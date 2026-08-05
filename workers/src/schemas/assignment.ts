@@ -17,7 +17,3 @@ export const conflictExclusionSchema = z.object({
   reason: z.string().max(255).nullable().optional(),
 });
 
-export const assignmentListQuerySchema = z.object({
-  judge_id: z.coerce.number().int().optional(),
-  submission_id: z.coerce.number().int().optional(),
-});

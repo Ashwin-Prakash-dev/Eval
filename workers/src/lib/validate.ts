@@ -75,3 +75,32 @@ export function intPathParam(name: string, raw: string): number {
   if (!Number.isSafeInteger(value)) throw invalidIntPathParam(name, raw);
   return value;
 }
+
+/**
+ * Integer query parameters. `z.coerce.number()` cannot be used here: it turns an empty
+ * value ("?judge_id=") into 0, which silently drops the filter, where FastAPI's str->int
+ * parser rejects it with a 422. An absent parameter falls back to `fallback`.
+ */
+export function intQueryParam(name: string, raw: string | undefined, fallback: number): number;
+export function intQueryParam(name: string, raw: string | undefined): number | undefined;
+export function intQueryParam(
+  name: string,
+  raw: string | undefined,
+  fallback?: number
+): number | undefined {
+  if (raw === undefined) return fallback;
+  const trimmed = raw.trim();
+  const invalid = () =>
+    new ValidationError([
+      {
+        type: "int_parsing",
+        loc: ["query", name],
+        msg: "Input should be a valid integer, unable to parse string as an integer",
+        input: raw,
+      },
+    ]);
+  if (!/^-?\d+$/.test(trimmed)) throw invalid();
+  const value = Number(trimmed);
+  if (!Number.isSafeInteger(value)) throw invalid();
+  return value;
+}

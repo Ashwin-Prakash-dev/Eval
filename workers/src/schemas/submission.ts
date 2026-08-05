@@ -44,14 +44,3 @@ export const problemStatementUpdateSchema = z.object({
   description: z.string().optional(),
 });
 
-/**
- * No min/max bounds: FastAPI declared these as bare `int` defaults with no Query(...)
- * constraints, and the frontend genuinely relies on it — the manual-assignment and
- * conflicts dialogs both request page_size=500.
- */
-export const listQuerySchema = z.object({
-  page: z.coerce.number().int().default(1),
-  page_size: z.coerce.number().int().default(20),
-  search: z.string().optional(),
-  problem_statement_id: z.coerce.number().int().optional(),
-});

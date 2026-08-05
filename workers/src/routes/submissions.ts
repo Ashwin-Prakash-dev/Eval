@@ -3,13 +3,12 @@ import { Hono } from "hono";
 import { FILE_PATH_COLUMN, type SubmissionRow, type VideoType } from "../db";
 import { badRequest, missingBodyField, notFound } from "../http";
 import { parseCsvRecords } from "../lib/csv";
-import { intPathParam, parseOrThrow, readFormData, readJson } from "../lib/validate";
+import { intPathParam, intQueryParam, parseOrThrow, readFormData, readJson } from "../lib/validate";
 import { requireAdmin, requireUser, type AppEnv } from "../middleware/auth";
 import * as auditRepo from "../repo/audit";
 import * as psRepo from "../repo/problem_statement";
 import * as submissionRepo from "../repo/submission";
 import {
-  listQuerySchema,
   submissionCreateSchema,
   submissionUpdateSchema,
 } from "../schemas/submission";
@@ -27,20 +26,27 @@ export const submissionRoutes = new Hono<AppEnv>();
 submissionRoutes.use("*", requireUser, requireAdmin);
 
 submissionRoutes.get("/", async (c) => {
-  const query = parseOrThrow(listQuerySchema, c.req.query(), "query");
+  const page = intQueryParam("page", c.req.query("page"), 1);
+  const pageSize = intQueryParam("page_size", c.req.query("page_size"), 20);
+  const problemStatementId = intQueryParam(
+    "problem_statement_id",
+    c.req.query("problem_statement_id")
+  );
+  const search = c.req.query("search");
+
   const { items, total } = await submissionRepo.listPaginated(
     c.env.DB,
-    query.page,
-    query.page_size,
-    query.search,
-    query.problem_statement_id
+    page,
+    pageSize,
+    search,
+    problemStatementId
   );
   return c.json({
     items: items.map(submissionOut),
     total,
-    page: query.page,
-    page_size: query.page_size,
-    total_pages: Math.max(Math.ceil(total / query.page_size), 1),
+    page,
+    page_size: pageSize,
+    total_pages: Math.max(Math.ceil(total / pageSize), 1),
   });
 });
 

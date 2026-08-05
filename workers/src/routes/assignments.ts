@@ -1,14 +1,13 @@
 import { Hono } from "hono";
 
 import { conflict, notFound } from "../http";
-import { intPathParam, parseOrThrow, readJson } from "../lib/validate";
+import { intPathParam, intQueryParam, parseOrThrow, readJson } from "../lib/validate";
 import { requireAdmin, requireUser, type AppEnv } from "../middleware/auth";
 import * as assignmentRepo from "../repo/assignment";
 import * as auditRepo from "../repo/audit";
 import * as submissionRepo from "../repo/submission";
 import * as userRepo from "../repo/user";
 import {
-  assignmentListQuerySchema,
   conflictExclusionSchema,
   generateAssignmentsSchema,
   manualAssignmentSchema,
@@ -72,8 +71,9 @@ assignmentRoutes.post("/generate", async (c) => {
 });
 
 assignmentRoutes.get("/", async (c) => {
-  const query = parseOrThrow(assignmentListQuerySchema, c.req.query(), "query");
-  const rows = await assignmentRepo.listAll(c.env.DB, query.judge_id, query.submission_id);
+  const judgeId = intQueryParam("judge_id", c.req.query("judge_id"));
+  const submissionId = intQueryParam("submission_id", c.req.query("submission_id"));
+  const rows = await assignmentRepo.listAll(c.env.DB, judgeId, submissionId);
   return c.json(rows.map(assignmentOut));
 });
 
