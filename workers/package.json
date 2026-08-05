@@ -9,7 +9,10 @@
     "cf-typegen": "wrangler types",
     "dryrun": "wrangler deploy --dry-run --outdir=.wrangler/dryrun",
     "db:migrate:local": "wrangler d1 migrations apply eval-db --local",
-    "db:migrate:remote": "wrangler d1 migrations apply eval-db --remote"
+    "db:migrate:remote": "wrangler d1 migrations apply eval-db --remote",
+    "db:seed:local": "wrangler d1 execute eval-db --local --file seed.sql",
+    "db:seed:remote": "wrangler d1 execute eval-db --remote --file seed.sql",
+    "db:reset:local": "wrangler d1 execute eval-db --local --file reset-local.sql"
   },
   "dependencies": {
     "hono": "^4.6.14",
