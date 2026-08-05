@@ -5,8 +5,10 @@ import { ZodError } from "zod";
 import { getSettings } from "./env";
 import { ApiError, ValidationError } from "./http";
 import type { AppEnv } from "./middleware/auth";
+import { assignmentRoutes } from "./routes/assignments";
 import { authRoutes } from "./routes/auth";
 import { problemStatementRoutes } from "./routes/problem_statements";
+import { rubricRoutes } from "./routes/rubrics";
 import { submissionRoutes } from "./routes/submissions";
 
 const app = new Hono<AppEnv>();
@@ -53,6 +55,8 @@ const api = new Hono<AppEnv>();
 api.route("/auth", authRoutes);
 api.route("/problem-statements", problemStatementRoutes);
 api.route("/submissions", submissionRoutes);
+api.route("/rubrics", rubricRoutes);
+api.route("/assignments", assignmentRoutes);
 
 app.route("/api", api);
 
