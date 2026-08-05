@@ -6,7 +6,8 @@
 export class ApiError extends Error {
   constructor(
     readonly status: number,
-    message: string
+    message: string,
+    readonly headers?: Record<string, string>
   ) {
     super(message);
     this.name = "ApiError";

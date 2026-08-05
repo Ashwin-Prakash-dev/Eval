@@ -2,10 +2,12 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { ZodError } from "zod";
 
-import { getSettings, type Bindings } from "./env";
+import { getSettings } from "./env";
 import { ApiError } from "./http";
+import type { AppEnv } from "./middleware/auth";
+import { authRoutes } from "./routes/auth";
 
-const app = new Hono<{ Bindings: Bindings }>();
+const app = new Hono<AppEnv>();
 
 app.use("*", (c, next) =>
   cors({
@@ -20,7 +22,7 @@ app.use("*", (c, next) =>
 // failure returns 422 with the per-field list, a bare ValueError returns 400.
 app.onError((err, c) => {
   if (err instanceof ApiError) {
-    return c.json({ detail: err.message }, err.status as 400);
+    return c.json({ detail: err.message }, err.status as 400, err.headers);
   }
   if (err instanceof ZodError) {
     return c.json(
@@ -28,7 +30,10 @@ app.onError((err, c) => {
       422
     );
   }
-  console.error("Unhandled error", err);
+  if (err instanceof SyntaxError) {
+    return c.json({ detail: "Invalid JSON body" }, 400);
+  }
+  console.error(JSON.stringify({ message: "Unhandled error", error: String(err) }));
   return c.json({ detail: "Internal Server Error" }, 500);
 });
 
@@ -39,9 +44,8 @@ app.get("/health", (c) => {
   return c.json({ status: "ok", app: settings.appName, environment: settings.environment });
 });
 
-// Resource routers are mounted here in Phase 2, under the /api prefix that
-// backend/app/core/config.py exposed as API_V1_PREFIX.
-const api = new Hono<{ Bindings: Bindings }>();
+const api = new Hono<AppEnv>();
+api.route("/auth", authRoutes);
 
 app.route("/api", api);
 

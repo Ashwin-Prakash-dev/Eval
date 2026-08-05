@@ -3,6 +3,12 @@ main = "src/index.ts"
 compatibility_date = "2026-08-03"
 compatibility_flags = ["nodejs_compat"]
 
+[observability]
+enabled = true
+
+[observability.logs]
+head_sampling_rate = 1
+
 # Run `wrangler d1 create eval-db` and paste the returned id into database_id.
 [[d1_databases]]
 binding = "DB"

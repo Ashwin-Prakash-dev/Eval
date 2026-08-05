@@ -1,27 +1,7 @@
-export interface Bindings {
-  DB: D1Database;
-  UPLOADS: R2Bucket;
-
-  APP_NAME: string;
-  ENVIRONMENT: string;
-  ACCESS_TOKEN_EXPIRE_MINUTES: string;
-  ADMIN_EMAIL: string;
-  ADMIN_FULL_NAME: string;
-  OTP_LENGTH: string;
-  OTP_TTL_MINUTES: string;
-  OTP_MAX_ATTEMPTS: string;
-  OTP_RESEND_COOLDOWN_SECONDS: string;
-  OTP_MAX_REQUESTS_PER_HOUR: string;
-  MAX_UPLOAD_SIZE_MB: string;
-  BREVO_FROM_EMAIL: string;
-  BREVO_FROM_NAME: string;
-  CORS_ORIGINS: string;
-
-  JWT_SECRET_KEY?: string;
-  OTP_PEPPER?: string;
-  BREVO_API_KEY?: string;
-}
-
+/**
+ * `Env` is generated from wrangler.toml by `npm run cf-typegen` (worker-configuration.d.ts).
+ * Do not hand-write it — it must stay in lockstep with the configured bindings.
+ */
 export interface Settings {
   appName: string;
   environment: string;
@@ -56,7 +36,7 @@ function originList(raw: string | undefined): string[] {
   }
 }
 
-export function getSettings(env: Bindings): Settings {
+export function getSettings(env: Env): Settings {
   const environment = env.ENVIRONMENT || "development";
   return {
     appName: env.APP_NAME || "Hackathon Evaluation Platform",
