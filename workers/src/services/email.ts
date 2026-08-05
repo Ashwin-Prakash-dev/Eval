@@ -68,6 +68,19 @@ export async function sendEmail(
     );
     throw badGateway("Could not send the passcode email. Check the mail server configuration.");
   }
+
+  // Brevo returns 201 with a messageId even when the sender is not a verified sender on
+  // the account — the message is then dropped at send time with no synchronous signal.
+  // Logging the id gives a handle to trace against Brevo's event log when mail vanishes.
+  const accepted = (await response.json().catch(() => null)) as { messageId?: string } | null;
+  console.log(
+    JSON.stringify({
+      message: "Passcode email accepted by Brevo",
+      to: toEmail,
+      from: settings.brevoFromEmail,
+      messageId: accepted?.messageId ?? null,
+    })
+  );
 }
 
 export async function sendOtpEmail(
