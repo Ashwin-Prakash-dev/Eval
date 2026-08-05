@@ -5,8 +5,12 @@ import { ZodError } from "zod";
 import { getSettings } from "./env";
 import { ApiError, ValidationError } from "./http";
 import type { AppEnv } from "./middleware/auth";
+import { analyticsRoutes } from "./routes/analytics";
 import { assignmentRoutes } from "./routes/assignments";
+import { auditLogRoutes } from "./routes/audit_logs";
 import { authRoutes } from "./routes/auth";
+import { evaluationRoutes } from "./routes/evaluations";
+import { judgeRoutes } from "./routes/judges";
 import { problemStatementRoutes } from "./routes/problem_statements";
 import { rubricRoutes } from "./routes/rubrics";
 import { submissionRoutes } from "./routes/submissions";
@@ -57,6 +61,10 @@ api.route("/problem-statements", problemStatementRoutes);
 api.route("/submissions", submissionRoutes);
 api.route("/rubrics", rubricRoutes);
 api.route("/assignments", assignmentRoutes);
+api.route("/judges", judgeRoutes);
+api.route("/evaluations", evaluationRoutes);
+api.route("/analytics", analyticsRoutes);
+api.route("/audit-logs", auditLogRoutes);
 
 app.route("/api", api);
 
