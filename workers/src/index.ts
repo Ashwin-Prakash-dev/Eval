@@ -10,6 +10,7 @@ import { assignmentRoutes } from "./routes/assignments";
 import { auditLogRoutes } from "./routes/audit_logs";
 import { authRoutes } from "./routes/auth";
 import { evaluationRoutes } from "./routes/evaluations";
+import { exportRoutes } from "./routes/export";
 import { judgeRoutes } from "./routes/judges";
 import { problemStatementRoutes } from "./routes/problem_statements";
 import { rubricRoutes } from "./routes/rubrics";
@@ -65,6 +66,7 @@ api.route("/judges", judgeRoutes);
 api.route("/evaluations", evaluationRoutes);
 api.route("/analytics", analyticsRoutes);
 api.route("/audit-logs", auditLogRoutes);
+api.route("/export", exportRoutes);
 
 app.route("/api", api);
 

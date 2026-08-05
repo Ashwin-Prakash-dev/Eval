@@ -2,9 +2,11 @@
   "name": "hackathon-eval-platform",
   "private": true,
   "scripts": {
-    "dev": "concurrently -n BACKEND,FRONTEND -c blue,green \"npm:dev:backend\" \"npm:dev:frontend\"",
-    "dev:backend": "cd backend && venv\\Scripts\\python.exe -m uvicorn app.main:app --reload --reload-dir app --port 8000",
-    "dev:frontend": "npm --prefix frontend run dev"
+    "dev": "concurrently -n WORKERS,FRONTEND -c magenta,green \"npm:dev:workers\" \"npm:dev:frontend\"",
+    "dev:workers": "npm --prefix workers run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:legacy": "concurrently -n BACKEND,FRONTEND -c blue,green \"npm:dev:backend\" \"npm:dev:frontend\"",
+    "dev:backend": "cd backend && venv\\Scripts\\python.exe -m uvicorn app.main:app --reload --reload-dir app --port 8000"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
