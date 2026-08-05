@@ -2,8 +2,10 @@ import axios from "axios";
 
 import { useAuthStore } from "@/store/auth-store";
 
+// Defaults to a same-origin /api, which the dev server proxies to the Worker. Set
+// VITE_API_BASE_URL to the deployed Worker's URL to talk to it directly instead.
 export const apiClient = axios.create({
-  baseURL: "/api",
+  baseURL: import.meta.env.VITE_API_BASE_URL || "/api",
 });
 
 apiClient.interceptors.request.use((config) => {

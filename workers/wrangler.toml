@@ -17,9 +17,13 @@ database_id = "8d4ba3f0-6a40-4f49-be7b-39ece8ba2c62"
 migrations_dir = "migrations"
 
 # Run `wrangler r2 bucket create eval-uploads`.
+# preview_bucket_name is what `wrangler dev --remote` uses. It points at the same bucket
+# here because this project has only one; create a second bucket and name it here if you
+# want remote development isolated from real uploads.
 [[r2_buckets]]
 binding = "UPLOADS"
 bucket_name = "eval-uploads"
+preview_bucket_name = "eval-uploads"
 
 [vars]
 APP_NAME = "Hackathon Evaluation Platform"
