@@ -13,3 +13,7 @@ export const evaluationAutosaveSchema = z.object({
   time_spent_delta_seconds: z.number().int().gte(0).default(0),
   mark_complete: z.boolean().nullable().optional(),
 });
+
+export const evaluationFlagSchema = z.object({
+  flagged_for_review: z.boolean(),
+});

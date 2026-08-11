@@ -11,13 +11,13 @@ interface Env {
 	OTP_MAX_ATTEMPTS: "5";
 	OTP_RESEND_COOLDOWN_SECONDS: "60";
 	OTP_MAX_REQUESTS_PER_HOUR: "5";
-	MAX_UPLOAD_SIZE_MB: "100";
 	BREVO_FROM_EMAIL: "no-reply@your-domain.com";
 	BREVO_FROM_NAME: "Hackathon Evaluation Platform";
 	CORS_ORIGINS: "[\"http://localhost:5173\",\"http://127.0.0.1:5173\"]" | "[\"https://your-frontend-domain\"]";
 	JWT_SECRET_KEY: string;
 	OTP_PEPPER: string;
 	BREVO_API_KEY: string;
-	UPLOADS: R2Bucket;
 	DB: D1Database;
+	// The startathon event database (scc-api-worker owns it). Read-only from here.
+	EVENTS_DB: D1Database;
 }

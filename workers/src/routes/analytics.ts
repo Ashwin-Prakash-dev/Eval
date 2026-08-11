@@ -8,19 +8,15 @@ export const analyticsRoutes = new Hono<AppEnv>();
 
 analyticsRoutes.use("*", requireUser, requireAdmin);
 
-analyticsRoutes.get("/overview", async (c) => c.json(await analytics.getOverview(c.env.DB)));
+analyticsRoutes.get("/overview", async (c) => c.json(await analytics.getOverview(c.env.DB, c.env.EVENTS_DB)));
+
+analyticsRoutes.get("/coverage", async (c) => c.json(await analytics.getCoverage(c.env.DB, c.env.EVENTS_DB)));
 
 analyticsRoutes.get("/leaderboard", async (c) => {
   const page = intQueryParam("page", c.req.query("page"), 1);
   const pageSize = intQueryParam("page_size", c.req.query("page_size"), 25);
-  const problemStatementId = intQueryParam(
-    "problem_statement_id",
-    c.req.query("problem_statement_id")
-  );
-
-  const { entries, total } = await analytics.getLeaderboard(c.env.DB, {
+  const { entries, total } = await analytics.getLeaderboard(c.env.DB, c.env.EVENTS_DB, {
     search: c.req.query("search"),
-    problem_statement_id: problemStatementId,
     sort_by: c.req.query("sort_by") ?? "overall_score",
     sort_dir: c.req.query("sort_dir") ?? "desc",
     page,

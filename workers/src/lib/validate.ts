@@ -3,7 +3,6 @@ import { ZodError, type ZodTypeAny, type z } from "zod";
 import {
   invalidIntPathParam,
   invalidJsonBody,
-  missingBodyField,
   ValidationError,
   type ValidationDetail,
 } from "../http";
@@ -57,16 +56,6 @@ export async function readJson(request: { json: () => Promise<unknown> }): Promi
  * A non-multipart body makes Request.formData() throw a TypeError; FastAPI reported the
  * same condition as a missing required `file` field.
  */
-export async function readFormData(
-  request: { formData: () => Promise<FormData> },
-  field: string
-): Promise<FormData> {
-  try {
-    return await request.formData();
-  } catch {
-    throw missingBodyField(field);
-  }
-}
 
 /** FastAPI coerced `int` path params and returned 422 when the value was not an integer. */
 export function intPathParam(name: string, raw: string): number {

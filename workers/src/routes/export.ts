@@ -10,7 +10,7 @@ const CONTENT_TYPES: Record<string, string> = {
   pdf: "application/pdf",
 };
 
-const BUILDERS: Record<string, (db: D1Database) => Promise<Uint8Array>> = {
+const BUILDERS: Record<string, (db: D1Database, eventsDb: D1Database) => Promise<Uint8Array>> = {
   csv: buildCsv,
   xlsx: buildXlsx,
   pdf: buildPdf,
@@ -25,7 +25,7 @@ exportRoutes.get("/:export_format", async (c) => {
   const builder = BUILDERS[format];
   if (!builder) throw badRequest("format must be one of: csv, xlsx, pdf");
 
-  const content = await builder(c.env.DB);
+  const content = await builder(c.env.DB, c.env.EVENTS_DB);
   return new Response(content, {
     headers: {
       "Content-Type": CONTENT_TYPES[format]!,

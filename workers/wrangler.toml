@@ -9,21 +9,25 @@ enabled = true
 [observability.logs]
 head_sampling_rate = 1
 
-# Run `wrangler d1 create eval-db` and paste the returned id into database_id.
+# Created on the GmBodhi account (81c188cf...), the SAME account as the startathon database.
+# A Worker cannot bind D1 databases across accounts, which is why both live here.
 [[d1_databases]]
 binding = "DB"
 database_name = "eval-db"
-database_id = "8d4ba3f0-6a40-4f49-be7b-39ece8ba2c62"
+database_id = "54bd6fda-8051-459b-afb3-2630ce7792e7"
 migrations_dir = "migrations"
 
-# Run `wrangler r2 bucket create eval-uploads`.
-# preview_bucket_name is what `wrangler dev --remote` uses. It points at the same bucket
-# here because this project has only one; create a second bucket and name it here if you
-# want remote development isolated from real uploads.
-[[r2_buckets]]
-binding = "UPLOADS"
-bucket_name = "eval-uploads"
-preview_bucket_name = "eval-uploads"
+# The startathon event database, owned by scc-api-worker. READ-ONLY from this Worker:
+# `startathon_applications` is the submissions table, joined to `startathon_teams` for the
+# team name. Never written to from here -- that system owns the data.
+#
+# Bound by id rather than name on purpose: two different accounts each have a database called
+# `scc_treasure_hunt_registrations`, and binding by name would silently pick the wrong one.
+# This id is the one scc-api-worker's wrangler.jsonc binds as EVENTS_DB.
+[[d1_databases]]
+binding = "EVENTS_DB"
+database_name = "scc_treasure_hunt_registrations"
+database_id = "2e8ed049-6348-4400-9ff5-a64e447fbe3d"
 
 [vars]
 APP_NAME = "Hackathon Evaluation Platform"
@@ -36,10 +40,7 @@ OTP_TTL_MINUTES = "10"
 OTP_MAX_ATTEMPTS = "5"
 OTP_RESEND_COOLDOWN_SECONDS = "60"
 OTP_MAX_REQUESTS_PER_HOUR = "5"
-# Workers caps the inbound request body at 100MB on Free/Pro, so the previous 300MB
-# ceiling is not reachable while uploads are proxied through the Worker.
-MAX_UPLOAD_SIZE_MB = "100"
-BREVO_FROM_EMAIL = "ashwinprk.dev@gmail.com"
+BREVO_FROM_EMAIL = "noreply@sctcoding.club"
 BREVO_FROM_NAME = "Hackathon Evaluation Platform"
 CORS_ORIGINS = '["http://localhost:5173","http://127.0.0.1:5173"]'
 
@@ -60,7 +61,23 @@ OTP_TTL_MINUTES = "10"
 OTP_MAX_ATTEMPTS = "5"
 OTP_RESEND_COOLDOWN_SECONDS = "60"
 OTP_MAX_REQUESTS_PER_HOUR = "5"
-MAX_UPLOAD_SIZE_MB = "100"
 BREVO_FROM_EMAIL = "ashwinprk.dev@gmail.com"
 BREVO_FROM_NAME = "Hackathon Evaluation Platform"
 CORS_ORIGINS = '["https://your-frontend-domain"]'
+
+# Named environments do NOT inherit top-level bindings, so the two databases must be
+# repeated here. Without this block `wrangler deploy --env production` ships a Worker with
+# no D1 at all and every request fails at runtime.
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "eval-db"
+database_id = "54bd6fda-8051-459b-afb3-2630ce7792e7"
+migrations_dir = "migrations"
+
+[[env.production.d1_databases]]
+binding = "EVENTS_DB"
+database_name = "scc_treasure_hunt_registrations"
+database_id = "2e8ed049-6348-4400-9ff5-a64e447fbe3d"
+
+[env.production.observability]
+enabled = true

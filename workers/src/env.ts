@@ -14,7 +14,6 @@ export interface Settings {
   otpMaxAttempts: number;
   otpResendCooldownSeconds: number;
   otpMaxRequestsPerHour: number;
-  maxUploadSizeMb: number;
   brevoFromEmail: string;
   brevoFromName: string;
   corsOrigins: string[];
@@ -50,7 +49,6 @@ export function getSettings(env: Env): Settings {
     otpMaxAttempts: int(env.OTP_MAX_ATTEMPTS, 5),
     otpResendCooldownSeconds: int(env.OTP_RESEND_COOLDOWN_SECONDS, 60),
     otpMaxRequestsPerHour: int(env.OTP_MAX_REQUESTS_PER_HOUR, 5),
-    maxUploadSizeMb: int(env.MAX_UPLOAD_SIZE_MB, 100),
     brevoFromEmail: env.BREVO_FROM_EMAIL || "no-reply@hackathon-eval.local",
     brevoFromName: env.BREVO_FROM_NAME || "Hackathon Evaluation Platform",
     corsOrigins: originList(env.CORS_ORIGINS),

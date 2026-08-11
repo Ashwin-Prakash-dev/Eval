@@ -40,8 +40,10 @@ export interface AllowedEmailBulkResult {
 
 export interface JudgeStats {
   judge: JudgeOut;
-  reviews_assigned: number;
+  /** Reviews this judge has opened. Nothing is allocated, so nothing is "assigned". */
+  reviews_started: number;
   reviews_completed: number;
+  /** Opened but not yet completed. */
   reviews_pending: number;
   average_score_given: number | null;
   std_dev_given: number | null;

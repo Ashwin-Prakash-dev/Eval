@@ -1,11 +1,10 @@
 import {
   BarChart3,
   ClipboardList,
+  Gauge,
   History,
   LayoutDashboard,
   ListChecks,
-  Navigation,
-  SlidersHorizontal,
   Trophy,
   Users,
 } from "lucide-react";
@@ -25,9 +24,6 @@ const AdminDashboardPage = lazy(() =>
   import("@/features/analytics/pages/admin-dashboard-page").then((m) => ({ default: m.AdminDashboardPage }))
 );
 const AnalyticsPage = lazy(() => import("@/features/analytics/pages/analytics-page").then((m) => ({ default: m.AnalyticsPage })));
-const AssignmentsPage = lazy(() =>
-  import("@/features/assignments/pages/assignments-page").then((m) => ({ default: m.AssignmentsPage }))
-);
 const EvaluationPage = lazy(() =>
   import("@/features/evaluation/pages/evaluation-page").then((m) => ({ default: m.EvaluationPage }))
 );
@@ -38,21 +34,22 @@ const JudgesPage = lazy(() => import("@/features/judges/pages/judges-page").then
 const LeaderboardPage = lazy(() =>
   import("@/features/leaderboard/pages/leaderboard-page").then((m) => ({ default: m.LeaderboardPage }))
 );
-const RubricPage = lazy(() => import("@/features/rubric/pages/rubric-page").then((m) => ({ default: m.RubricPage })));
 const SubmissionDetailPage = lazy(() =>
   import("@/features/submissions/pages/submission-detail-page").then((m) => ({ default: m.SubmissionDetailPage }))
 );
 const SubmissionsPage = lazy(() =>
   import("@/features/submissions/pages/submissions-page").then((m) => ({ default: m.SubmissionsPage }))
 );
+const CoveragePage = lazy(() =>
+  import("@/features/analytics/pages/coverage-page").then((m) => ({ default: m.CoveragePage }))
+);
 const AuditLogPage = lazy(() => import("@/features/audit/pages/audit-log-page").then((m) => ({ default: m.AuditLogPage })));
 
 const adminNav: NavItem[] = [
   { to: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/admin/submissions", label: "Submissions", icon: ClipboardList },
+  { to: "/admin/coverage", label: "Coverage", icon: Gauge },
   { to: "/admin/judges", label: "Judges", icon: Users },
-  { to: "/admin/rubric", label: "Rubric", icon: SlidersHorizontal },
-  { to: "/admin/assignments", label: "Assignments", icon: Navigation },
   { to: "/admin/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/admin/leaderboard", label: "Leaderboard", icon: Trophy },
   { to: "/admin/audit-logs", label: "Audit history", icon: History },
@@ -87,9 +84,8 @@ export function App() {
             <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
             <Route path="/admin/submissions" element={<SubmissionsPage />} />
             <Route path="/admin/submissions/:id" element={<SubmissionDetailPage />} />
+            <Route path="/admin/coverage" element={<CoveragePage />} />
             <Route path="/admin/judges" element={<JudgesPage />} />
-            <Route path="/admin/rubric" element={<RubricPage />} />
-            <Route path="/admin/assignments" element={<AssignmentsPage />} />
             <Route path="/admin/analytics" element={<AnalyticsPage />} />
             <Route path="/admin/leaderboard" element={<LeaderboardPage />} />
             <Route path="/admin/audit-logs" element={<AuditLogPage />} />

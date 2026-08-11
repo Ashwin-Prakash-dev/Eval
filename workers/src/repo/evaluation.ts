@@ -2,14 +2,15 @@ import { nowIso } from "../lib/time";
 
 export interface EvaluationRow {
   id: number;
-  assignment_id: number;
-  submission_id: number;
+  submission_id: string;
   judge_id: number;
   status: string;
   weighted_overall_score: number | null;
   time_spent_seconds: number;
   started_at: string | null;
   completed_at: string | null;
+  /** 0/1. A judge's private bookmark; never serialised into an admin response. */
+  flagged_for_review: number;
   updated_at: string;
 }
 
@@ -72,16 +73,43 @@ export async function get(db: D1Database, evaluationId: number): Promise<Evaluat
   return (await attachDetail(db, [row]))[0] ?? null;
 }
 
-export async function getByAssignment(
+export async function getForJudge(
   db: D1Database,
-  assignmentId: number
+  submissionId: string,
+  judgeId: number
 ): Promise<EvaluationWithDetail | null> {
   const row = await db
-    .prepare("SELECT * FROM evaluations WHERE assignment_id = ?")
-    .bind(assignmentId)
+    .prepare("SELECT * FROM evaluations WHERE submission_id = ? AND judge_id = ?")
+    .bind(submissionId, judgeId)
     .first<EvaluationRow>();
   if (!row) return null;
   return (await attachDetail(db, [row]))[0] ?? null;
+}
+
+/**
+ * There is no assignment step any more, so an evaluation comes into existence the first time
+ * a judge opens a submission. The INSERT relies on the (submission_id, judge_id) unique
+ * constraint rather than a check-then-insert: two concurrent opens by the same judge would
+ * otherwise both see "no row" and race. `ON CONFLICT DO NOTHING` makes the loser a no-op and
+ * the follow-up read returns whichever row won.
+ */
+export async function getOrCreateForJudge(
+  db: D1Database,
+  submissionId: string,
+  judgeId: number
+): Promise<EvaluationWithDetail> {
+  await db
+    .prepare(
+      `INSERT INTO evaluations (submission_id, judge_id, status, updated_at)
+       VALUES (?, ?, 'not_started', ?)
+       ON CONFLICT (submission_id, judge_id) DO NOTHING`
+    )
+    .bind(submissionId, judgeId, nowIso())
+    .run();
+
+  const evaluation = await getForJudge(db, submissionId, judgeId);
+  if (!evaluation) throw new Error("Failed to create evaluation");
+  return evaluation;
 }
 
 export async function listForJudge(db: D1Database, judgeId: number): Promise<EvaluationWithDetail[]> {
@@ -94,7 +122,7 @@ export async function listForJudge(db: D1Database, judgeId: number): Promise<Eva
 
 export async function listForSubmission(
   db: D1Database,
-  submissionId: number
+  submissionId: string
 ): Promise<(EvaluationWithDetail & { judge_email: string; judge_full_name: string | null })[]> {
   const { results } = await db
     .prepare(
@@ -213,5 +241,30 @@ export async function applyAutosave(
   await db
     .prepare(`UPDATE evaluations SET ${sets.join(", ")} WHERE id = ?`)
     .bind(...values)
+    .run();
+}
+
+/** Per-submission count of completed evaluations, for the judge's reviewable list. */
+export async function completedCountsBySubmission(
+  db: D1Database
+): Promise<Map<string, number>> {
+  const { results } = await db
+    .prepare(
+      `SELECT submission_id, COUNT(*) AS count
+       FROM evaluations WHERE status = 'completed'
+       GROUP BY submission_id`
+    )
+    .all<{ submission_id: string; count: number }>();
+  return new Map(results.map((r) => [r.submission_id, r.count]));
+}
+
+export async function setFlagged(
+  db: D1Database,
+  evaluationId: number,
+  flagged: boolean
+): Promise<void> {
+  await db
+    .prepare("UPDATE evaluations SET flagged_for_review = ?, updated_at = ? WHERE id = ?")
+    .bind(flagged ? 1 : 0, nowIso(), evaluationId)
     .run();
 }

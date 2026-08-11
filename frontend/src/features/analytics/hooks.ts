@@ -6,6 +6,10 @@ export function useAnalyticsOverview() {
   return useQuery({ queryKey: ["analytics", "overview"], queryFn: analyticsApi.overview, refetchInterval: 30_000 });
 }
 
+export function useCoverage() {
+  return useQuery({ queryKey: ["analytics", "coverage"], queryFn: analyticsApi.coverage, refetchInterval: 30_000 });
+}
+
 export function useLeaderboard(params: LeaderboardParams) {
   return useQuery({ queryKey: ["leaderboard", params], queryFn: () => analyticsApi.leaderboard(params) });
 }

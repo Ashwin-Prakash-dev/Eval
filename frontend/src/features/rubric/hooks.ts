@@ -1,65 +1,14 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-
-import { apiErrorMessage } from "@/lib/api-client";
-import type { RubricCreate, RubricUpdate } from "@/types/rubric";
+import { useQuery } from "@tanstack/react-query";
 
 import { rubricApi } from "./api";
 
 const key = ["rubrics"];
 
-export function useRubrics() {
-  return useQuery({ queryKey: key, queryFn: rubricApi.list });
-}
-
+/**
+ * The rubric never changes at runtime, so this is fetched once and reused. It backs both the
+ * judge evaluation form and the admin submission detail view, which maps criterion ids to
+ * names.
+ */
 export function useActiveRubric() {
   return useQuery({ queryKey: [...key, "active"], queryFn: rubricApi.active, retry: false });
-}
-
-export function useCreateRubric() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (payload: RubricCreate) => rubricApi.create(payload),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: key });
-      toast.success("Rubric created");
-    },
-    onError: (error) => toast.error(apiErrorMessage(error, "Could not create rubric")),
-  });
-}
-
-export function useUpdateRubric() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, payload }: { id: number; payload: RubricUpdate }) => rubricApi.update(id, payload),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: key });
-      toast.success("Rubric updated");
-    },
-    onError: (error) => toast.error(apiErrorMessage(error, "Could not update rubric")),
-  });
-}
-
-export function useActivateRubric() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (id: number) => rubricApi.activate(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: key });
-      toast.success("Rubric activated");
-    },
-    onError: (error) => toast.error(apiErrorMessage(error, "Could not activate rubric")),
-  });
-}
-
-export function useDeleteRubric() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (id: number) => rubricApi.remove(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: key });
-      toast.success("Rubric deleted");
-    },
-    onError: (error) => toast.error(apiErrorMessage(error, "Could not delete rubric")),
-  });
 }

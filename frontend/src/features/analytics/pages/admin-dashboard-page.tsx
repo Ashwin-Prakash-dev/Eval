@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
+
+import { CoverageStrip } from "../components/coverage-strip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,6 +41,12 @@ export function AdminDashboardPage() {
         />
       </div>
 
+      {data?.coverage && (
+        <div className="mb-6">
+          <CoverageStrip coverage={data.coverage} />
+        </div>
+      )}
+
       <Card>
         <CardHeader className="flex-row items-center justify-between space-y-0">
           <CardTitle>Leaderboard preview</CardTitle>
@@ -62,7 +70,6 @@ export function AdminDashboardPage() {
                 </span>
                 <div>
                   <p className="font-medium">{entry.project_title}</p>
-                  <p className="text-xs text-muted-foreground">{entry.problem_statement ?? "—"}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">

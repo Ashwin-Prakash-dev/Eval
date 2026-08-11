@@ -5,7 +5,6 @@ import {
   CriterionAveragesChart,
   JudgeProgressChart,
   ScoreDistributionChart,
-  SubmissionDistributionChart,
 } from "../components/charts";
 import { useAnalyticsOverview } from "../hooks";
 
@@ -26,10 +25,11 @@ export function AnalyticsPage() {
     <div>
       <PageHeader title="Analytics" description="Progress, distribution, and scoring trends across the event" />
       <div className="grid gap-4 sm:grid-cols-2">
-        <SubmissionDistributionChart data={data.submission_distribution} />
         <JudgeProgressChart data={data.judge_progress} />
         <ScoreDistributionChart data={data.score_distribution} />
-        <CriterionAveragesChart data={data.criterion_averages} />
+        <div className="sm:col-span-2">
+          <CriterionAveragesChart data={data.criterion_averages} />
+        </div>
       </div>
     </div>
   );

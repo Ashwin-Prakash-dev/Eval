@@ -59,48 +59,7 @@ export interface OtpCodeRow {
   created_at: string;
 }
 
-export type VideoType = "upload" | "youtube" | "vimeo";
 export type EvaluationStatus = "not_started" | "in_progress" | "completed";
-export type FileKind = "ppt" | "pdf" | "video";
-
-export interface ProblemStatementRow {
-  id: number;
-  code: string;
-  title: string;
-  description: string;
-  created_at: string;
-}
-
-export interface SubmissionRow {
-  id: number;
-  project_title: string;
-  team_identifier: string;
-  short_description: string;
-  additional_notes: string | null;
-  problem_statement_id: number | null;
-  ppt_file_path: string | null;
-  pdf_file_path: string | null;
-  video_type: string;
-  video_url: string | null;
-  video_file_path: string | null;
-  created_by_id: number | null;
-  created_at: string;
-  updated_at: string;
-}
-
-/** A submission joined to its problem statement, matching the joinedload in the CRUD layer. */
-export interface SubmissionWithProblemStatement extends SubmissionRow {
-  ps_id: number | null;
-  ps_code: string | null;
-  ps_title: string | null;
-}
-
-/** Maps a file kind to the submission column holding its storage key. */
-export const FILE_PATH_COLUMN: Record<FileKind, keyof SubmissionRow> = {
-  ppt: "ppt_file_path",
-  pdf: "pdf_file_path",
-  video: "video_file_path",
-};
 
 export function toUser(row: UserRow): User {
   return {

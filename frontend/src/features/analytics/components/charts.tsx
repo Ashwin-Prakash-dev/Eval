@@ -16,7 +16,6 @@ import type {
   CriterionAveragePoint,
   JudgeProgressPoint,
   ScoreDistributionBucket,
-  SubmissionDistributionPoint,
 } from "@/types/analytics";
 
 function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
@@ -38,32 +37,6 @@ function tooltipStyle(theme: ReturnType<typeof getChartTheme>) {
     fontSize: 12,
     color: theme.primaryText,
   };
-}
-
-export function SubmissionDistributionChart({ data }: { data: SubmissionDistributionPoint[] }) {
-  const theme = getChartTheme(useIsDark());
-  return (
-    <ChartCard title="Submission distribution by problem statement">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 8 }}>
-          <CartesianGrid stroke={theme.grid} vertical={false} />
-          <XAxis
-            dataKey="problem_statement"
-            tick={{ fill: theme.mutedText, fontSize: 11 }}
-            axisLine={{ stroke: theme.axis }}
-            tickLine={false}
-            interval={0}
-            angle={-15}
-            textAnchor="end"
-            height={50}
-          />
-          <YAxis tick={{ fill: theme.mutedText, fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
-          <Tooltip contentStyle={tooltipStyle(theme)} cursor={{ fill: theme.grid, opacity: 0.4 }} />
-          <Bar dataKey="count" name="Submissions" fill={theme.categorical[0]} radius={[4, 4, 0, 0]} maxBarSize={48} />
-        </BarChart>
-      </ResponsiveContainer>
-    </ChartCard>
-  );
 }
 
 export function JudgeProgressChart({ data }: { data: JudgeProgressPoint[] }) {

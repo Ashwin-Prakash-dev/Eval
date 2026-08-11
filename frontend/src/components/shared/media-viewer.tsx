@@ -1,65 +1,25 @@
-import { Download, FileWarning } from "lucide-react";
+import { ExternalLink, FileWarning } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useProtectedFile } from "@/hooks/use-protected-file";
 import { getEmbedUrl } from "@/lib/video-embed";
-import type { VideoType } from "@/types/common";
 
-export function PdfViewer({ path, hasFile }: { path: string; hasFile: boolean }) {
-  const { url, isLoading, error } = useProtectedFile(hasFile ? path : null);
+/**
+ * The deck and the pitch video are URLs owned by the startathon system (a Google Drive link
+ * and a YouTube link), not files this app stores. Both are verified as publicly viewable on
+ * that side before a team can submit, so they are rendered directly rather than proxied.
+ */
 
-  if (!hasFile) return <NoAsset label="No PDF uploaded" />;
-  if (isLoading) return <Skeleton className="h-full min-h-[420px] w-full" />;
-  if (error || !url) return <NoAsset label="Could not load PDF" />;
+export function VideoEmbed({ url }: { url: string }) {
+  // Every startathon submission links YouTube; anything else falls back to a plain link
+  // rather than an iframe that would silently render blank.
+  const embed = url ? getEmbedUrl(url, "youtube") : null;
 
-  return <iframe title="PDF preview" src={url} className="h-full min-h-[420px] w-full rounded-lg border bg-white" />;
-}
-
-export function PptAsset({ path, hasFile }: { path: string; hasFile: boolean }) {
-  const { url, isLoading, error } = useProtectedFile(hasFile ? path : null);
-
-  if (!hasFile) return <NoAsset label="No slide deck uploaded" />;
-  if (isLoading) return <Skeleton className="h-24 w-full" />;
-  if (error || !url) return <NoAsset label="Could not load slide deck" />;
-
-  return (
-    <div className="flex items-center justify-between rounded-lg border bg-muted/30 p-4">
-      <div>
-        <p className="text-sm font-medium">Slide deck (PPT)</p>
-        <p className="text-xs text-muted-foreground">In-browser preview isn't available for PowerPoint files — download to view.</p>
-      </div>
-      <Button asChild size="sm" variant="outline">
-        <a href={url} download>
-          <Download className="h-4 w-4" /> Download
-        </a>
-      </Button>
-    </div>
-  );
-}
-
-export function VideoPlayer({
-  videoType,
-  videoUrl,
-  filePath,
-  hasFile,
-}: {
-  videoType: VideoType;
-  videoUrl: string | null;
-  filePath: string;
-  hasFile: boolean;
-}) {
-  const { url, isLoading, error } = useProtectedFile(videoType === "upload" && hasFile ? filePath : null);
-
-  if (videoType === "upload") {
-    if (!hasFile) return <NoAsset label="No video uploaded" />;
-    if (isLoading) return <Skeleton className="aspect-video w-full" />;
-    if (error || !url) return <NoAsset label="Could not load video" />;
-    return <video controls src={url} className="aspect-video w-full rounded-lg border bg-black" />;
+  if (!embed) {
+    return url ? (
+      <ExternalAsset url={url} label="Open pitch video" />
+    ) : (
+      <NoAsset label="No pitch video linked" />
+    );
   }
-
-  const embed = videoUrl ? getEmbedUrl(videoUrl, videoType) : null;
-  if (!embed) return <NoAsset label="No pitch video linked" />;
 
   return (
     <iframe
@@ -69,6 +29,52 @@ export function VideoPlayer({
       allowFullScreen
       className="aspect-video w-full rounded-lg border bg-black"
     />
+  );
+}
+
+/**
+ * Drive refuses to render inside an iframe for most sharing configurations, so the deck is
+ * an explicit link out rather than a preview that would frequently show an error page.
+ *
+ * `compact` renders a single row instead of a drop-zone-sized block, for the narrow side
+ * rail where the deck sits beside the application text rather than being the main content.
+ */
+export function DeckLink({ url, compact = false }: { url: string; compact?: boolean }) {
+  if (!url) {
+    return compact ? (
+      <p className="text-sm text-muted-foreground">No deck linked</p>
+    ) : (
+      <NoAsset label="No deck linked" />
+    );
+  }
+  if (compact) {
+    return (
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors hover:bg-accent"
+      >
+        <ExternalLink className="h-4 w-4 shrink-0" />
+        Open slide deck
+      </a>
+    );
+  }
+  return <ExternalAsset url={url} label="Open slide deck" />;
+}
+
+function ExternalAsset({ url, label }: { url: string; label: string }) {
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex h-40 flex-col items-center justify-center gap-2 rounded-lg border border-dashed text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground"
+    >
+      <ExternalLink className="h-6 w-6" />
+      <p className="text-sm font-medium">{label}</p>
+      <p className="max-w-full truncate px-4 text-xs">{url}</p>
+    </a>
   );
 }
 

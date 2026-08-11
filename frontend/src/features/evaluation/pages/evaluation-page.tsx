@@ -1,20 +1,20 @@
-import { ArrowLeft, ArrowRight, CheckCircle2, LayoutList } from "lucide-react";
+import { ArrowLeft, ArrowRight, Bookmark, CheckCircle2, Info, LayoutList } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-import { PdfViewer, PptAsset, VideoPlayer } from "@/components/shared/media-viewer";
+import { ApplicationDetails } from "@/components/shared/application-details";
+import { DeckLink, VideoEmbed } from "@/components/shared/media-viewer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import type { EvaluationDetailOut } from "@/types/evaluation";
+import type { EvaluationDetailOut, ReviewableOut } from "@/types/evaluation";
 
-import { evaluationApi } from "../api";
 import { CriterionScoreInput } from "../components/criterion-score-input";
 import { SaveStatusIndicator } from "../components/save-status-indicator";
-import { useAssignedEvaluations, useEvaluationDetail } from "../hooks";
+import { useEvaluationDetail, useReviewableSubmissions, useToggleFlag } from "../hooks";
 import { useEvaluationAutosave } from "../use-evaluation-autosave";
 
 export function EvaluationPage() {
@@ -22,7 +22,7 @@ export function EvaluationPage() {
   const id = Number(evaluationId);
 
   const { data, isLoading } = useEvaluationDetail(id);
-  const { data: assignedList } = useAssignedEvaluations();
+  const { data: reviewable } = useReviewableSubmissions();
 
   if (isLoading || !data) {
     return (
@@ -33,33 +33,37 @@ export function EvaluationPage() {
     );
   }
 
-  return <EvaluationWorkspace key={id} evaluationId={id} data={data} assignedList={assignedList} />;
+  return <EvaluationWorkspace key={id} evaluationId={id} data={data} reviewable={reviewable} />;
 }
 
 function EvaluationWorkspace({
   evaluationId,
   data,
-  assignedList,
+  reviewable,
 }: {
   evaluationId: number;
   data: EvaluationDetailOut;
-  assignedList: EvaluationDetailOut[] | undefined;
+  reviewable: ReviewableOut[] | undefined;
 }) {
   const navigate = useNavigate();
   const [activeIndex, setActiveIndex] = useState(0);
   const { submission, criteria } = data;
+  const flagMutation = useToggleFlag();
   const autosave = useEvaluationAutosave(evaluationId, criteria, data.evaluation);
 
   const { currentPosition, prevId, nextId, remaining } = useMemo(() => {
-    if (!assignedList) return { currentPosition: 0, prevId: null, nextId: null, remaining: 0 };
-    const idx = assignedList.findIndex((a) => a.evaluation.id === evaluationId);
+    if (!reviewable) return { currentPosition: 0, prevId: null, nextId: null, remaining: 0 };
+    // Only submissions this judge has already opened have an evaluation id to navigate to;
+    // the rest are reachable from the dashboard, which creates the evaluation on open.
+    const opened = reviewable.filter((r) => r.evaluation !== null);
+    const idx = opened.findIndex((r) => r.evaluation!.id === evaluationId);
     return {
       currentPosition: idx + 1,
-      prevId: idx > 0 ? assignedList[idx - 1].evaluation.id : null,
-      nextId: idx >= 0 && idx < assignedList.length - 1 ? assignedList[idx + 1].evaluation.id : null,
-      remaining: assignedList.filter((a) => a.evaluation.status !== "completed").length,
+      prevId: idx > 0 ? opened[idx - 1]!.evaluation!.id : null,
+      nextId: idx >= 0 && idx < opened.length - 1 ? opened[idx + 1]!.evaluation!.id : null,
+      remaining: reviewable.filter((r) => r.evaluation?.status !== "completed").length,
     };
-  }, [assignedList, evaluationId]);
+  }, [reviewable, evaluationId]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -92,14 +96,44 @@ function EvaluationWorkspace({
           </Button>
           <span className="ml-2 flex items-center gap-1.5 text-sm text-muted-foreground">
             <LayoutList className="h-4 w-4" />
-            {currentPosition} of {assignedList?.length ?? "…"} · {remaining} remaining
+            {currentPosition} of {reviewable?.filter((r) => r.evaluation !== null).length ?? "…"} · {remaining} remaining
           </span>
         </div>
-        <SaveStatusIndicator status={autosave.status} onRetry={autosave.retry} />
+        <div className="flex items-center gap-2">
+          {/* Private to this judge — never shown to admins or other judges. */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              flagMutation.mutate({
+                id: evaluationId,
+                flagged: !data.evaluation.flagged_for_review,
+              })
+            }
+          >
+            <Bookmark
+              className={
+                data.evaluation.flagged_for_review ? "h-4 w-4 fill-primary text-primary" : "h-4 w-4"
+              }
+            />
+            {data.evaluation.flagged_for_review ? "Flagged" : "Flag for later"}
+          </Button>
+          <SaveStatusIndicator status={autosave.status} onRetry={autosave.retry} />
+        </div>
       </div>
 
+      {!data.counts_toward_score && (
+        <div className="mb-4 flex items-start gap-2 rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+          <Info className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>
+            This submission already has {data.scoring_limit} scoring reviews. Yours will be recorded
+            and visible to the organisers, but will not affect its score.
+          </span>
+        </div>
+      )}
+
       <div className="mb-4">
-        <Progress value={assignedList ? (currentPosition / assignedList.length) * 100 : 0} />
+        <Progress value={reviewable?.length ? (currentPosition / reviewable.length) * 100 : 0} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-5">
@@ -108,37 +142,25 @@ function EvaluationWorkspace({
             <CardHeader>
               <CardTitle>{submission.project_title}</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <VideoPlayer
-                videoType={submission.video_type}
-                videoUrl={submission.video_url}
-                filePath={evaluationApi.fileUrl(evaluationId, "video")}
-                hasFile={submission.has_video_file}
+            <CardContent>
+              <ApplicationDetails
+                shortDescription={submission.short_description}
+                problemEvidence={submission.problem_evidence}
+                domains={submission.domains}
+                priorWork={submission.prior_work}
               />
-              <div>
-                {submission.problem_statement && (
-                  <p className="mb-1 text-sm font-medium text-primary">{submission.problem_statement.title}</p>
-                )}
-                <p className="text-sm">{submission.short_description}</p>
-                {submission.additional_notes && (
-                  <p className="mt-2 text-sm text-muted-foreground">{submission.additional_notes}</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Slide deck / PDF</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <PdfViewer path={evaluationApi.fileUrl(evaluationId, "pdf")} hasFile={submission.has_pdf} />
-              <PptAsset path={evaluationApi.fileUrl(evaluationId, "ppt")} hasFile={submission.has_ppt} />
             </CardContent>
           </Card>
         </div>
 
         <div className="space-y-4 lg:col-span-2">
+          <Card>
+            <CardContent className="space-y-3 pt-6">
+              <VideoEmbed url={submission.video_url} />
+              <DeckLink url={submission.deck_url} compact />
+            </CardContent>
+          </Card>
+
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
               {autosave.scoredCount}/{autosave.totalCriteria} criteria scored — press 1–9/0 to score the highlighted criterion

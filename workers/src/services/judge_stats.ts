@@ -1,10 +1,11 @@
+import { CRITERION_WEIGHTS } from "../config/rubric";
 import type { User } from "../db";
 import { fmean, pstdev, pyRound } from "../lib/stats";
-import * as rubricRepo from "../repo/rubric";
 
 export interface JudgeStats {
   judge: User;
-  reviews_assigned: number;
+  /** Reviews this judge has opened. There is no allocation any more, so nothing is "assigned". */
+  reviews_started: number;
   reviews_completed: number;
   reviews_pending: number;
   average_score_given: number | null;
@@ -24,10 +25,7 @@ export async function computeJudgeStats(
   db: D1Database,
   judges: User[]
 ): Promise<JudgeStats[]> {
-  const rubric = await rubricRepo.getActive(db);
-  const weightByCriterion = new Map<number, number>(
-    (rubric?.criteria ?? []).map((c) => [c.id, c.weight])
-  );
+  const weightByCriterion = CRITERION_WEIGHTS;
 
   interface Raw {
     judge: User;
@@ -99,7 +97,7 @@ export async function computeJudgeStats(
 
   return raw.map((entry) => ({
     judge: entry.judge,
-    reviews_assigned: entry.assigned,
+    reviews_started: entry.assigned,
     reviews_completed: entry.completed,
     reviews_pending: entry.pending,
     average_score_given: entry.avgScore,

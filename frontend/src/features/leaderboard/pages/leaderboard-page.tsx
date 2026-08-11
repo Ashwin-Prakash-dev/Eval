@@ -11,7 +11,6 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ExportMenu } from "@/features/analytics/components/export-menu";
 import { useLeaderboard } from "@/features/analytics/hooks";
-import { useProblemStatements } from "@/features/submissions/hooks";
 import { useDebouncedCallback } from "@/hooks/use-debounced-callback";
 import { cn, formatScore } from "@/lib/utils";
 import type { LeaderboardEntry } from "@/types/analytics";
@@ -27,16 +26,13 @@ export function LeaderboardPage() {
   const [page, setPage] = useState(1);
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
-  const [problemStatementId, setProblemStatementId] = useState("all");
   const [sortBy, setSortBy] = useState("overall_score");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
-  const { data: problemStatements } = useProblemStatements();
   const { data, isLoading } = useLeaderboard({
     page,
     page_size: 20,
     search: search || undefined,
-    problem_statement_id: problemStatementId !== "all" ? Number(problemStatementId) : undefined,
     sort_by: sortBy,
     sort_dir: sortDir,
   });
@@ -60,7 +56,6 @@ export function LeaderboardPage() {
       cell: ({ row }) => (
         <div>
           <p className="font-medium">{row.original.project_title}</p>
-          <p className="text-xs text-muted-foreground">{row.original.problem_statement ?? "—"}</p>
         </div>
       ),
     },
@@ -103,19 +98,6 @@ export function LeaderboardPage() {
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search projects…" className="pl-8" onChange={(e) => debouncedSearch(e.target.value)} />
         </div>
-        <Select value={problemStatementId} onValueChange={(v) => { setProblemStatementId(v); setPage(1); }}>
-          <SelectTrigger className="w-56">
-            <SelectValue placeholder="All problem statements" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All problem statements</SelectItem>
-            {problemStatements?.map((ps) => (
-              <SelectItem key={ps.id} value={String(ps.id)}>
-                {ps.code} — {ps.title}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
         <Select value={sortBy} onValueChange={setSortBy}>
           <SelectTrigger className="w-48">
             <SelectValue />

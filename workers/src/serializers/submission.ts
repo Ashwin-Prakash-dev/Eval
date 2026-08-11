@@ -1,10 +1,4 @@
-import type { SubmissionWithProblemStatement, VideoType } from "../db";
-
-export interface ProblemStatementBrief {
-  id: number;
-  code: string;
-  title: string;
-}
+import type { ApplicationRow } from "../repo/application";
 
 /**
  * Team identity is enforced by type, not by filtering.
@@ -14,70 +8,92 @@ export interface ProblemStatementBrief {
  * build their object field by field and never spread a database row — spreading would
  * reintroduce the leak the moment a new column is added. See backend/app/schemas/
  * submission.py, which used two separate Pydantic models for the same reason.
+ *
+ * This matters more now than it did: every application row carries `team_name` from the
+ * startathon join, so a judge response has to be built deliberately to keep it out.
  */
+
+export interface PriorWork {
+  kind: string;
+  url?: string;
+  description: string;
+}
+
 export interface SubmissionOut {
-  id: number;
+  id: string;
   project_title: string;
   team_identifier: string;
   short_description: string;
-  additional_notes: string | null;
-  problem_statement: ProblemStatementBrief | null;
-  has_ppt: boolean;
-  has_pdf: boolean;
-  video_type: VideoType;
-  video_url: string | null;
-  has_video_file: boolean;
+  problem_evidence: string;
+  domains: string[] | null;
+  prior_work: PriorWork[] | null;
+  deck_url: string;
+  video_url: string;
   created_at: string;
-  updated_at: string;
+  updated_at: string | null;
 }
 
 export interface SubmissionJudgeOut {
-  id: number;
+  id: string;
   project_title: string;
   short_description: string;
-  additional_notes: string | null;
-  problem_statement: ProblemStatementBrief | null;
-  has_ppt: boolean;
-  has_pdf: boolean;
-  video_type: VideoType;
-  video_url: string | null;
-  has_video_file: boolean;
+  problem_evidence: string;
+  domains: string[] | null;
+  prior_work: PriorWork[] | null;
+  deck_url: string;
+  video_url: string;
 }
 
-function problemStatementBrief(row: SubmissionWithProblemStatement): ProblemStatementBrief | null {
-  if (row.ps_id === null || row.ps_code === null || row.ps_title === null) return null;
-  return { id: row.ps_id, code: row.ps_code, title: row.ps_title };
+/**
+ * `domains` and `prior_work` are JSON documents where NULL and '[]' mean different things:
+ * NULL is "the team never answered", '[]' is "the team declared none". The distinction is
+ * preserved rather than collapsed to an empty array, because undeclared prior work is a
+ * penalty offence on the startathon side and a judge has to be able to tell them apart.
+ */
+function parseJsonArray<T>(raw: string | null): T[] | null {
+  if (raw === null) return null;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as T[]) : null;
+  } catch {
+    return null;
+  }
 }
 
-export function submissionOut(row: SubmissionWithProblemStatement): SubmissionOut {
+/** Startathon timestamps are epoch integers; this API has always emitted ISO-8601. */
+function toIso(epoch: number | null): string | null {
+  if (epoch === null) return null;
+  // Written in seconds. Guard anyway: a millisecond value read as seconds lands in the
+  // year 56000 and would silently sort to the end of every list.
+  const ms = epoch < 1e12 ? epoch * 1000 : epoch;
+  return new Date(ms).toISOString();
+}
+
+export function submissionOut(row: ApplicationRow): SubmissionOut {
   return {
-    id: row.id,
-    project_title: row.project_title,
-    team_identifier: row.team_identifier,
-    short_description: row.short_description,
-    additional_notes: row.additional_notes,
-    problem_statement: problemStatementBrief(row),
-    has_ppt: Boolean(row.ppt_file_path),
-    has_pdf: Boolean(row.pdf_file_path),
-    video_type: row.video_type as VideoType,
+    id: row.team_id,
+    project_title: row.title,
+    team_identifier: row.team_name,
+    short_description: row.summary,
+    problem_evidence: row.problem_evidence,
+    domains: parseJsonArray<string>(row.domains),
+    prior_work: parseJsonArray<PriorWork>(row.prior_work),
+    deck_url: row.deck_url,
     video_url: row.video_url,
-    has_video_file: Boolean(row.video_file_path),
-    created_at: row.created_at,
-    updated_at: row.updated_at,
+    created_at: toIso(row.created_at) ?? "",
+    updated_at: toIso(row.updated_at),
   };
 }
 
-export function submissionJudgeOut(row: SubmissionWithProblemStatement): SubmissionJudgeOut {
+export function submissionJudgeOut(row: ApplicationRow): SubmissionJudgeOut {
   return {
-    id: row.id,
-    project_title: row.project_title,
-    short_description: row.short_description,
-    additional_notes: row.additional_notes,
-    problem_statement: problemStatementBrief(row),
-    has_ppt: Boolean(row.ppt_file_path),
-    has_pdf: Boolean(row.pdf_file_path),
-    video_type: row.video_type as VideoType,
+    id: row.team_id,
+    project_title: row.title,
+    short_description: row.summary,
+    problem_evidence: row.problem_evidence,
+    domains: parseJsonArray<string>(row.domains),
+    prior_work: parseJsonArray<PriorWork>(row.prior_work),
+    deck_url: row.deck_url,
     video_url: row.video_url,
-    has_video_file: Boolean(row.video_file_path),
   };
 }

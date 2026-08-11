@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ChevronDown, ChevronUp, FileText, Presentation, Upload, Video } from "lucide-react";
-import { useRef, useState } from "react";
+import { ArrowLeft, ChevronDown, ChevronUp, Video } from "lucide-react";
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-import { PdfViewer, PptAsset, VideoPlayer } from "@/components/shared/media-viewer";
+import { ApplicationDetails } from "@/components/shared/application-details";
+import { DeckLink, VideoEmbed } from "@/components/shared/media-viewer";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,21 +14,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { evaluationApi } from "@/features/evaluation/api";
 import { useActiveRubric } from "@/features/rubric/hooks";
 import { cn, formatScore } from "@/lib/utils";
-import type { FileKind } from "@/types/common";
 import type { EvaluationAdminOut } from "@/types/evaluation";
 
-import { submissionsApi } from "../api";
-import { useSubmission, useUploadSubmissionFile } from "../hooks";
+import { useSubmission } from "../hooks";
 
 export function SubmissionDetailPage() {
-  const { id } = useParams();
-  const submissionId = Number(id);
+  const { id: submissionId } = useParams();
   const navigate = useNavigate();
   const { data: submission, isLoading } = useSubmission(submissionId);
-  const uploadMutation = useUploadSubmissionFile(submissionId);
   const { data: evaluations } = useQuery({
     queryKey: ["evaluations", "submission", submissionId],
-    queryFn: () => evaluationApi.forSubmission(submissionId),
+    queryFn: () => evaluationApi.forSubmission(submissionId!),
+    enabled: submissionId !== undefined,
   });
   const { data: rubric } = useActiveRubric();
   const criterionById = new Map((rubric?.criteria ?? []).map((c) => [c.id, c]));
@@ -43,16 +41,6 @@ export function SubmissionDetailPage() {
       }
       return next;
     });
-
-  const pptRef = useRef<HTMLInputElement>(null);
-  const pdfRef = useRef<HTMLInputElement>(null);
-  const videoRef = useRef<HTMLInputElement>(null);
-
-  const handleUpload = (kind: FileKind) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) uploadMutation.mutate({ kind, file });
-    e.target.value = "";
-  };
 
   if (isLoading || !submission) {
     return (
@@ -70,79 +58,24 @@ export function SubmissionDetailPage() {
       </Button>
       <PageHeader
         title={submission.project_title}
-        description={`Team: ${submission.team_identifier}${submission.problem_statement ? ` · ${submission.problem_statement.title}` : ""}`}
+        description={`Team: ${submission.team_identifier}`}
       />
 
       <div className="grid gap-6 lg:grid-cols-3">
+        {/* The application text is the substance being judged, so it takes the wide column;
+            the deck and video are reference material in the rail. */}
         <div className="space-y-6 lg:col-span-2">
           <Card>
-            <CardHeader className="flex-row items-center justify-between space-y-0">
-              <CardTitle className="flex items-center gap-2">
-                <Video className="h-4 w-4" /> Pitch video
-              </CardTitle>
-              {submission.video_type === "upload" && (
-                <>
-                  <Button size="sm" variant="outline" onClick={() => videoRef.current?.click()} disabled={uploadMutation.isPending}>
-                    <Upload className="h-4 w-4" /> {submission.has_video_file ? "Replace" : "Upload"}
-                  </Button>
-                  <input ref={videoRef} type="file" accept="video/*" className="hidden" onChange={handleUpload("video")} />
-                </>
-              )}
-            </CardHeader>
-            <CardContent>
-              <VideoPlayer
-                videoType={submission.video_type}
-                videoUrl={submission.video_url}
-                filePath={submissionsApi.fileUrl(submissionId, "video")}
-                hasFile={submission.has_video_file}
-              />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex-row items-center justify-between space-y-0">
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-4 w-4" /> PDF deck
-              </CardTitle>
-              <Button size="sm" variant="outline" onClick={() => pdfRef.current?.click()} disabled={uploadMutation.isPending}>
-                <Upload className="h-4 w-4" /> {submission.has_pdf ? "Replace" : "Upload"}
-              </Button>
-              <input ref={pdfRef} type="file" accept=".pdf" className="hidden" onChange={handleUpload("pdf")} />
-            </CardHeader>
-            <CardContent>
-              <PdfViewer path={submissionsApi.fileUrl(submissionId, "pdf")} hasFile={submission.has_pdf} />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex-row items-center justify-between space-y-0">
-              <CardTitle className="flex items-center gap-2">
-                <Presentation className="h-4 w-4" /> Slide deck
-              </CardTitle>
-              <Button size="sm" variant="outline" onClick={() => pptRef.current?.click()} disabled={uploadMutation.isPending}>
-                <Upload className="h-4 w-4" /> {submission.has_ppt ? "Replace" : "Upload"}
-              </Button>
-              <input ref={pptRef} type="file" accept=".ppt,.pptx" className="hidden" onChange={handleUpload("ppt")} />
-            </CardHeader>
-            <CardContent>
-              <PptAsset path={submissionsApi.fileUrl(submissionId, "ppt")} hasFile={submission.has_ppt} />
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="space-y-6">
-          <Card>
             <CardHeader>
-              <CardTitle>Description</CardTitle>
+              <CardTitle>Application</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <p>{submission.short_description || <span className="text-muted-foreground">No description provided.</span>}</p>
-              {submission.additional_notes && (
-                <div>
-                  <p className="mb-1 font-medium">Additional notes</p>
-                  <p className="text-muted-foreground">{submission.additional_notes}</p>
-                </div>
-              )}
+            <CardContent>
+              <ApplicationDetails
+                shortDescription={submission.short_description}
+                problemEvidence={submission.problem_evidence}
+                domains={submission.domains}
+                priorWork={submission.prior_work}
+              />
             </CardContent>
           </Card>
 
@@ -164,6 +97,20 @@ export function SubmissionDetailPage() {
                   />
                 ))
               )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Video className="h-4 w-4" /> Pitch video
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <VideoEmbed url={submission.video_url} />
+              <DeckLink url={submission.deck_url} compact />
             </CardContent>
           </Card>
         </div>
@@ -195,9 +142,15 @@ function JudgeEvaluationRow({
       >
         <div>
           <p className="font-medium">{evaluation.judge.full_name || evaluation.judge.email}</p>
-          <Badge variant={evaluation.status === "completed" ? "success" : "secondary"} className="mt-1">
-            {evaluation.status.replace("_", " ")}
-          </Badge>
+          <div className="mt-1 flex flex-wrap items-center gap-1">
+            <Badge variant={evaluation.status === "completed" ? "success" : "secondary"}>
+              {evaluation.status.replace("_", " ")}
+            </Badge>
+            {/* Only the first five completed reviews move the score; the rest are recorded. */}
+            {evaluation.status === "completed" && !evaluation.counts_toward_score && (
+              <Badge variant="outline">not counted</Badge>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-lg font-semibold tabular-nums">{formatScore(evaluation.weighted_overall_score)}</span>

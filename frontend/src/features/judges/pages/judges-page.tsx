@@ -15,7 +15,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
 import { useDebouncedCallback } from "@/hooks/use-debounced-callback";
 import { formatScore, formatSeconds } from "@/lib/utils";
 import type { AllowedEmailOut, JudgeStats } from "@/types/judge";
@@ -79,20 +78,20 @@ export function JudgesPage() {
       },
     },
     {
-      header: "Progress",
+      header: "Reviews",
+      // Deliberately a count, not a percentage. Nothing is allocated any more, so
+      // completed/opened would read 100% for a judge who opened one submission and
+      // finished it — flattering and useless.
       cell: ({ row }) => {
         const s = row.original.stats;
-        if (!s || s.reviews_assigned === 0) return <span className="text-muted-foreground">—</span>;
-        const pct = Math.round((s.reviews_completed / s.reviews_assigned) * 100);
+        if (!s || s.reviews_started === 0) return <span className="text-muted-foreground">—</span>;
         return (
-          <div className="w-32">
-            <div className="mb-1 flex justify-between text-xs text-muted-foreground">
-              <span>
-                {s.reviews_completed}/{s.reviews_assigned}
-              </span>
-              <span>{pct}%</span>
-            </div>
-            <Progress value={pct} />
+          <div className="text-sm">
+            <span className="font-medium tabular-nums">{s.reviews_completed}</span>
+            <span className="text-muted-foreground"> completed</span>
+            {s.reviews_pending > 0 && (
+              <span className="text-muted-foreground"> · {s.reviews_pending} in progress</span>
+            )}
           </div>
         );
       },

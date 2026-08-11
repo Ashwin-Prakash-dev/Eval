@@ -1,5 +1,8 @@
+import { CRITERIA_ORDERED, CRITERION_NAMES } from "../config/rubric";
 import { fmean, pyRound } from "../lib/stats";
-import * as rubricRepo from "../repo/rubric";
+import * as applicationRepo from "../repo/application";
+import * as evaluationRepo from "../repo/evaluation";
+import { SCORING_EVALUATION_LIMIT } from "./scoring";
 
 /** Ported from backend/app/services/analytics_service.py. */
 const SCORE_BUCKETS: [number, number][] = [
@@ -12,9 +15,8 @@ const SCORE_BUCKETS: [number, number][] = [
 
 export interface LeaderboardEntry {
   rank: number;
-  submission_id: number;
+  submission_id: string;
   project_title: string;
-  problem_statement: string | null;
   overall_score: number | null;
   criterion_scores: Record<string, number>;
   std_dev: number | null;
@@ -23,10 +25,8 @@ export interface LeaderboardEntry {
 }
 
 interface LeaderboardRow {
-  id: number;
+  id: string;
   project_title: string;
-  problem_statement_id: number | null;
-  ps_title: string | null;
   overall_score: number | null;
   criterion_means: string | null;
   std_dev: number | null;
@@ -34,18 +34,19 @@ interface LeaderboardRow {
   is_flagged: number | null;
 }
 
-export async function getDashboardStats(db: D1Database) {
+export async function getDashboardStats(db: D1Database, eventsDb: D1Database) {
+  // total_submissions counts startathon applications, which live in the other database and
+  // therefore cannot be a subquery here.
+  const totalSubmissions = await applicationRepo.count(eventsDb);
   const row = await db
     .prepare(
       `SELECT
-         (SELECT COUNT(*) FROM submissions) AS total_submissions,
          (SELECT COUNT(*) FROM users WHERE role = 'judge') AS total_judges,
-         (SELECT COUNT(*) FROM assignments) AS total_reviews,
+         (SELECT COUNT(*) FROM evaluations) AS total_reviews,
          (SELECT COUNT(*) FROM evaluations WHERE status = 'completed') AS completed_reviews,
          (SELECT AVG(overall_score) FROM submission_scores) AS average_score`
     )
     .first<{
-      total_submissions: number;
       total_judges: number;
       total_reviews: number;
       completed_reviews: number;
@@ -53,7 +54,6 @@ export async function getDashboardStats(db: D1Database) {
     }>();
 
   const stats = row ?? {
-    total_submissions: 0,
     total_judges: 0,
     total_reviews: 0,
     completed_reviews: 0,
@@ -61,7 +61,7 @@ export async function getDashboardStats(db: D1Database) {
   };
 
   return {
-    total_submissions: stats.total_submissions,
+    total_submissions: totalSubmissions,
     total_judges: stats.total_judges,
     total_reviews: stats.total_reviews,
     completed_reviews: stats.completed_reviews,
@@ -70,43 +70,26 @@ export async function getDashboardStats(db: D1Database) {
   };
 }
 
-export async function getSubmissionDistribution(db: D1Database) {
-  const { results } = await db
-    .prepare(
-      `SELECT p.title AS title, COUNT(s.id) AS count
-       FROM problem_statements p
-       JOIN submissions s ON s.problem_statement_id = p.id
-       GROUP BY p.title ORDER BY p.title`
-    )
-    .all<{ title: string; count: number }>();
-
-  const points = results.map((r) => ({ problem_statement: r.title, count: r.count }));
-
-  const unassigned = await db
-    .prepare("SELECT COUNT(*) AS count FROM submissions WHERE problem_statement_id IS NULL")
-    .first<{ count: number }>();
-  if (unassigned && unassigned.count) {
-    points.push({ problem_statement: "Unassigned", count: unassigned.count });
-  }
-  return points;
-}
-
-export async function getJudgeProgress(db: D1Database) {
+/**
+ * Judge progress is now measured against the whole field rather than an allocation: with
+ * assignments gone, "pending" means submissions this judge has not yet completed, not work
+ * someone handed them.
+ */
+export async function getJudgeProgress(db: D1Database, eventsDb: D1Database) {
   const { results: judges } = await db
     .prepare("SELECT id, email, full_name FROM users WHERE role = 'judge' ORDER BY email")
     .all<{ id: number; email: string; full_name: string | null }>();
+
+  const total = await applicationRepo.count(eventsDb);
 
   const points = [];
   for (const judge of judges) {
     const row = await db
       .prepare(
-        `SELECT
-           (SELECT COUNT(*) FROM assignments WHERE judge_id = ?1) AS total,
-           (SELECT COUNT(*) FROM evaluations WHERE judge_id = ?1 AND status = 'completed') AS completed`
+        "SELECT COUNT(*) AS completed FROM evaluations WHERE judge_id = ? AND status = 'completed'"
       )
       .bind(judge.id)
-      .first<{ total: number; completed: number }>();
-    const total = row?.total ?? 0;
+      .first<{ completed: number }>();
     const completed = row?.completed ?? 0;
     points.push({
       judge_id: judge.id,
@@ -137,15 +120,12 @@ function formatBucket(value: number): string {
 }
 
 export async function getCriterionAverages(db: D1Database) {
-  const rubric = await rubricRepo.getActive(db);
-  if (!rubric) return [];
-
   const { results } = await db
     .prepare("SELECT criterion_means FROM submission_scores")
     .all<{ criterion_means: string | null }>();
   const allMeans = results.map((r) => parseMeans(r.criterion_means));
 
-  return rubric.criteria.map((criterion) => {
+  return CRITERIA_ORDERED.map((criterion) => {
     const key = String(criterion.id);
     const values = allMeans
       .filter((m): m is Record<string, number> => m !== null && Object.prototype.hasOwnProperty.call(m, key))
@@ -169,9 +149,9 @@ function parseMeans(raw: string | null): Record<string, number> | null {
 
 export async function getLeaderboard(
   db: D1Database,
+  eventsDb: D1Database,
   options: {
     search?: string;
-    problem_statement_id?: number;
     sort_by?: string;
     sort_dir?: string;
     page?: number;
@@ -183,37 +163,45 @@ export async function getLeaderboard(
   const page = options.page ?? 1;
   const pageSize = options.page_size ?? 25;
 
-  const rubric = await rubricRepo.getActive(db);
-  const criterionNames = new Map<number, string>(
-    (rubric?.criteria ?? []).map((c) => [c.id, c.name])
-  );
+  const criterionNames = CRITERION_NAMES;
 
-  const where: string[] = [];
-  const params: unknown[] = [];
-  if (options.search) {
-    where.push("s.project_title LIKE ?");
-    params.push(`%${options.search}%`);
-  }
-  if (options.problem_statement_id) {
-    where.push("s.problem_statement_id = ?");
-    params.push(options.problem_statement_id);
-  }
-  const clause = where.length ? ` WHERE ${where.join(" AND ")}` : "";
+  // Submissions and their scores live in different D1 databases, so the old single-query
+  // LEFT JOIN becomes two reads merged here. Sorting and pagination were already done in
+  // application code, so only the join and the title filter moved.
+  const applications = await applicationRepo.listAll(eventsDb);
+  const term = options.search?.toLowerCase();
+  const filtered = term
+    ? applications.filter((a) => a.title.toLowerCase().includes(term))
+    : applications;
 
-  const { results } = await db
+  const { results: scoreRows } = await db
     .prepare(
-      `SELECT s.id, s.project_title, s.problem_statement_id,
-              p.title AS ps_title,
-              sc.overall_score, sc.criterion_means, sc.std_dev,
-              sc.reviews_completed, sc.is_flagged
-       FROM submissions s
-       LEFT JOIN problem_statements p ON p.id = s.problem_statement_id
-       LEFT JOIN submission_scores sc ON sc.submission_id = s.id${clause}`
+      `SELECT submission_id, overall_score, criterion_means, std_dev,
+              reviews_completed, is_flagged
+       FROM submission_scores`
     )
-    .bind(...params)
-    .all<LeaderboardRow>();
+    .all<{
+      submission_id: string;
+      overall_score: number | null;
+      criterion_means: string | null;
+      std_dev: number | null;
+      reviews_completed: number | null;
+      is_flagged: number | null;
+    }>();
+  const scoreById = new Map(scoreRows.map((r) => [r.submission_id, r]));
 
-  const rows = [...results];
+  const rows: LeaderboardRow[] = filtered.map((a) => {
+    const score = scoreById.get(a.team_id);
+    return {
+      id: a.team_id,
+      project_title: a.title,
+      overall_score: score?.overall_score ?? null,
+      criterion_means: score?.criterion_means ?? null,
+      std_dev: score?.std_dev ?? null,
+      reviews_completed: score?.reviews_completed ?? null,
+      is_flagged: score?.is_flagged ?? null,
+    };
+  });
   const total = rows.length;
 
   // Sorting mirrors the Python implementation: missing numeric values sort as -1, and
@@ -248,7 +236,6 @@ export async function getLeaderboard(
       rank: start + index + 1,
       submission_id: row.id,
       project_title: row.project_title,
-      problem_statement: row.ps_title,
       overall_score: row.overall_score,
       criterion_scores: criterionScores,
       std_dev: row.std_dev,
@@ -260,12 +247,63 @@ export async function getLeaderboard(
   return { entries, total };
 }
 
-export async function getOverview(db: D1Database) {
-  const { entries } = await getLeaderboard(db, { page: 1, page_size: 5 });
+/**
+ * Review coverage: how many completed reviews each submission has, and how the field is
+ * distributed across the buckets that matter.
+ *
+ * This exists because dropping assignments removed the guarantee that every submission gets
+ * reviewed. Coverage used to be produced by allocation; now it is emergent, and this is the
+ * only thing that answers "is every submission going to be scored?".
+ *
+ * Buckets are cut around SCORING_EVALUATION_LIMIT rather than evenly: the meaningful
+ * question is not "how many reviews" but "is it scored yet, and if not how far off".
+ */
+export async function getCoverage(db: D1Database, eventsDb: D1Database) {
+  const applications = await applicationRepo.listAll(eventsDb);
+  const completedCounts = await evaluationRepo.completedCountsBySubmission(db);
+
+  const submissions = applications
+    .map((application) => {
+      const completed = completedCounts.get(application.team_id) ?? 0;
+      return {
+        id: application.team_id,
+        project_title: application.title,
+        team_identifier: application.team_name,
+        completed_reviews: completed,
+        needed: Math.max(SCORING_EVALUATION_LIMIT - completed, 0),
+        is_scored: completed >= SCORING_EVALUATION_LIMIT,
+      };
+    })
+    // Neediest first: this list is a worklist, not a catalogue.
+    .sort((a, b) => a.completed_reviews - b.completed_reviews || a.project_title.localeCompare(b.project_title));
+
+  const inRange = (n: number, min: number, max: number) => n >= min && n <= max;
+  const buckets = [
+    { label: "No reviews", min: 0, max: 0 },
+    { label: "1-2", min: 1, max: 2 },
+    { label: "3-4", min: 3, max: 4 },
+    { label: `${SCORING_EVALUATION_LIMIT}+ (scored)`, min: SCORING_EVALUATION_LIMIT, max: Infinity },
+  ].map((bucket) => ({
+    label: bucket.label,
+    count: submissions.filter((s) => inRange(s.completed_reviews, bucket.min, bucket.max)).length,
+  }));
+
   return {
-    stats: await getDashboardStats(db),
-    submission_distribution: await getSubmissionDistribution(db),
-    judge_progress: await getJudgeProgress(db),
+    scoring_limit: SCORING_EVALUATION_LIMIT,
+    total_submissions: submissions.length,
+    fully_scored: submissions.filter((s) => s.is_scored).length,
+    unreviewed: submissions.filter((s) => s.completed_reviews === 0).length,
+    buckets,
+    submissions,
+  };
+}
+
+export async function getOverview(db: D1Database, eventsDb: D1Database) {
+  const { entries } = await getLeaderboard(db, eventsDb, { page: 1, page_size: 5 });
+  return {
+    stats: await getDashboardStats(db, eventsDb),
+    coverage: await getCoverage(db, eventsDb),
+    judge_progress: await getJudgeProgress(db, eventsDb),
     score_distribution: await getScoreDistribution(db),
     criterion_averages: await getCriterionAverages(db),
     leaderboard_preview: entries,

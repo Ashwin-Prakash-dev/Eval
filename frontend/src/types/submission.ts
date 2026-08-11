@@ -1,70 +1,41 @@
-import type { VideoType } from "./common";
+/**
+ * Submissions are `startathon_applications`, read from the startathon event database. This
+ * app never writes them: there is no create, update or delete, and the deck and video are
+ * URLs owned by that system rather than files stored here.
+ *
+ * `id` is the startathon `team_id` — a string, not a number.
+ */
 
-export interface ProblemStatement {
-  id: number;
-  code: string;
-  title: string;
+export interface PriorWork {
+  kind: string;
+  url?: string;
   description: string;
-  created_at: string;
 }
-
-export interface ProblemStatementCreate {
-  code: string;
-  title: string;
-  description?: string;
-}
-
-export type ProblemStatementUpdate = Partial<ProblemStatementCreate>;
-
-export interface ProblemStatementBrief {
-  id: number;
-  code: string;
-  title: string;
-}
-
-export interface SubmissionCreate {
-  project_title: string;
-  team_identifier: string;
-  problem_statement_id?: number | null;
-  short_description?: string;
-  additional_notes?: string | null;
-  video_type: VideoType;
-  video_url?: string | null;
-}
-
-export type SubmissionUpdate = Partial<SubmissionCreate>;
 
 export interface SubmissionOut {
-  id: number;
+  id: string;
   project_title: string;
   team_identifier: string;
   short_description: string;
-  additional_notes: string | null;
-  problem_statement: ProblemStatementBrief | null;
-  has_ppt: boolean;
-  has_pdf: boolean;
-  video_type: VideoType;
-  video_url: string | null;
-  has_video_file: boolean;
+  problem_evidence: string;
+  /** null means the team never answered; [] means they explicitly declared none. */
+  domains: string[] | null;
+  /** null means the team never answered; [] means they explicitly declared none. */
+  prior_work: PriorWork[] | null;
+  deck_url: string;
+  video_url: string;
   created_at: string;
-  updated_at: string;
+  updated_at: string | null;
 }
 
+/** Structurally omits team_identifier, so a judge view cannot render it. */
 export interface SubmissionJudgeOut {
-  id: number;
+  id: string;
   project_title: string;
   short_description: string;
-  additional_notes: string | null;
-  problem_statement: ProblemStatementBrief | null;
-  has_ppt: boolean;
-  has_pdf: boolean;
-  video_type: VideoType;
-  video_url: string | null;
-  has_video_file: boolean;
-}
-
-export interface BulkImportResult {
-  created: number;
-  failed: number;
-  errors: string[];
+  problem_evidence: string;
+  domains: string[] | null;
+  prior_work: PriorWork[] | null;
+  deck_url: string;
+  video_url: string;
 }

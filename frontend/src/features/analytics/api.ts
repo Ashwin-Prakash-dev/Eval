@@ -1,18 +1,18 @@
 import { apiClient } from "@/lib/api-client";
-import type { AnalyticsOverview, LeaderboardEntry } from "@/types/analytics";
+import type { AnalyticsOverview, CoverageOut, LeaderboardEntry } from "@/types/analytics";
 import type { Page } from "@/types/common";
 
 export interface LeaderboardParams {
   page: number;
   page_size: number;
   search?: string;
-  problem_statement_id?: number;
   sort_by?: string;
   sort_dir?: string;
 }
 
 export const analyticsApi = {
   overview: () => apiClient.get<AnalyticsOverview>("/analytics/overview").then((r) => r.data),
+  coverage: () => apiClient.get<CoverageOut>("/analytics/coverage").then((r) => r.data),
   leaderboard: (params: LeaderboardParams) =>
     apiClient.get<Page<LeaderboardEntry>>("/analytics/leaderboard", { params }).then((r) => r.data),
 };

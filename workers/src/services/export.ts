@@ -1,5 +1,5 @@
+import { CRITERIA_ORDERED } from "../config/rubric";
 import { buildZip } from "../lib/zip";
-import * as rubricRepo from "../repo/rubric";
 import * as userRepo from "../repo/user";
 import * as analytics from "./analytics";
 import { computeJudgeStats, type JudgeStats } from "./judge_stats";
@@ -12,15 +12,14 @@ interface ReportData {
   generatedAt: string;
 }
 
-async function gatherReportData(db: D1Database): Promise<ReportData> {
-  const { entries } = await analytics.getLeaderboard(db, { page: 1, page_size: 100000 });
+async function gatherReportData(db: D1Database, eventsDb: D1Database): Promise<ReportData> {
+  const { entries } = await analytics.getLeaderboard(db, eventsDb, { page: 1, page_size: 100000 });
   const judges = await userRepo.listJudges(db);
-  const rubric = await rubricRepo.getActive(db);
   return {
     rankings: entries,
     judgeStats: await computeJudgeStats(db, judges),
     criterionAverages: await analytics.getCriterionAverages(db),
-    criteriaNames: (rubric?.criteria ?? []).map((c) => c.name),
+    criteriaNames: CRITERIA_ORDERED.map((c) => c.name),
     generatedAt: formatGeneratedAt(new Date()),
   };
 }
@@ -47,20 +46,19 @@ function csvRow(cells: (string | number)[]): string {
   return `${cells.map(csvCell).join(",")}\r\n`;
 }
 
-export async function buildCsv(db: D1Database): Promise<Uint8Array> {
-  const data = await gatherReportData(db);
+export async function buildCsv(db: D1Database, eventsDb: D1Database): Promise<Uint8Array> {
+  const data = await gatherReportData(db, eventsDb);
   let out = "";
 
   out += csvRow([`Hackathon Evaluation Report - generated ${data.generatedAt}`]);
   out += csvRow([]);
 
   out += csvRow(["FINAL RANKINGS"]);
-  out += csvRow(["Rank", "Project", "Problem Statement", "Overall Score", "Std Dev", "Reviews Completed", "Flagged"]);
+  out += csvRow(["Rank", "Project", "Overall Score", "Std Dev", "Reviews Completed", "Flagged"]);
   for (const e of data.rankings) {
     out += csvRow([
       e.rank,
       e.project_title,
-      e.problem_statement ?? "",
       orBlank(e.overall_score),
       orBlank(e.std_dev),
       e.reviews_completed,
@@ -83,13 +81,13 @@ export async function buildCsv(db: D1Database): Promise<Uint8Array> {
 
   out += csvRow(["JUDGE STATISTICS"]);
   out += csvRow([
-    "Judge", "Assigned", "Completed", "Pending", "Avg Score Given",
+    "Judge", "Started", "Completed", "Pending", "Avg Score Given",
     "Std Dev", "Avg Review Time (s)", "Harsh", "Lenient", "High Variance",
   ]);
   for (const s of data.judgeStats) {
     out += csvRow([
       displayName(s.judge),
-      s.reviews_assigned,
+      s.reviews_started,
       s.reviews_completed,
       s.reviews_pending,
       orBlank(s.average_score_given),
@@ -151,16 +149,16 @@ function columnName(index: number): string {
   return name;
 }
 
-export async function buildXlsx(db: D1Database): Promise<Uint8Array> {
-  const data = await gatherReportData(db);
+export async function buildXlsx(db: D1Database, eventsDb: D1Database): Promise<Uint8Array> {
+  const data = await gatherReportData(db, eventsDb);
 
   const sheets: { name: string; rows: Cell[][] }[] = [
     {
       name: "Rankings",
       rows: [
-        ["Rank", "Project", "Problem Statement", "Overall Score", "Std Dev", "Reviews Completed", "Flagged"],
+        ["Rank", "Project", "Overall Score", "Std Dev", "Reviews Completed", "Flagged"],
         ...data.rankings.map((e) => [
-          e.rank, e.project_title, e.problem_statement ?? "", e.overall_score,
+          e.rank, e.project_title, e.overall_score,
           e.std_dev, e.reviews_completed, yesNo(e.is_flagged),
         ] as Cell[]),
       ],
@@ -178,9 +176,9 @@ export async function buildXlsx(db: D1Database): Promise<Uint8Array> {
     {
       name: "Judge Statistics",
       rows: [
-        ["Judge", "Assigned", "Completed", "Pending", "Avg Score Given", "Std Dev", "Avg Review Time (s)", "Harsh", "Lenient", "High Variance"],
+        ["Judge", "Started", "Completed", "Pending", "Avg Score Given", "Std Dev", "Avg Review Time (s)", "Harsh", "Lenient", "High Variance"],
         ...data.judgeStats.map((s) => [
-          displayName(s.judge), s.reviews_assigned, s.reviews_completed, s.reviews_pending,
+          displayName(s.judge), s.reviews_started, s.reviews_completed, s.reviews_pending,
           s.average_score_given, s.std_dev_given, s.average_review_time_seconds,
           yesNo(s.is_harsh), yesNo(s.is_lenient), yesNo(s.is_high_variance),
         ] as Cell[]),
@@ -244,8 +242,8 @@ const pdfEscape = (value: string) => value.replace(/\\/g, "\\\\").replace(/\(/g,
  * original report; the visual layout is a simpler fixed-column grid rather than
  * reportlab's Table flowables.
  */
-export async function buildPdf(db: D1Database): Promise<Uint8Array> {
-  const data = await gatherReportData(db);
+export async function buildPdf(db: D1Database, eventsDb: D1Database): Promise<Uint8Array> {
+  const data = await gatherReportData(db, eventsDb);
   const pageWidth = 792;
   const pageHeight = 612;
   const margin = 36;
@@ -298,25 +296,24 @@ export async function buildPdf(db: D1Database): Promise<Uint8Array> {
 
   table(
     "Final Rankings",
-    ["Rank", "Project", "Problem Statement", "Overall", "Std Dev", "Reviews", "Flagged"],
+    ["Rank", "Project", "Overall", "Std Dev", "Reviews", "Flagged"],
     data.rankings.map((e) => [
       String(e.rank),
       e.project_title,
-      e.problem_statement ?? "",
       e.overall_score === null ? "-" : e.overall_score.toFixed(2),
       e.std_dev === null ? "-" : e.std_dev.toFixed(2),
       String(e.reviews_completed),
       yesNo(e.is_flagged),
     ]),
-    [40, 200, 160, 60, 60, 55, 55]
+    [40, 260, 70, 70, 60, 60]
   );
 
   table(
     "Judge Statistics",
-    ["Judge", "Assigned", "Completed", "Avg Score", "Std Dev", "Flags"],
+    ["Judge", "Started", "Completed", "Avg Score", "Std Dev", "Flags"],
     data.judgeStats.map((s) => [
       displayName(s.judge),
-      String(s.reviews_assigned),
+      String(s.reviews_started),
       String(s.reviews_completed),
       s.average_score_given === null ? "-" : s.average_score_given.toFixed(2),
       s.std_dev_given === null ? "-" : s.std_dev_given.toFixed(2),

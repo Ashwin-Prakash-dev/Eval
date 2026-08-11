@@ -14,10 +14,6 @@ import { useAuditLogs } from "../hooks";
 const entityTypes = [
   "submission",
   "judge",
-  "rubric",
-  "assignment",
-  "conflict_exclusion",
-  "problem_statement",
   "user",
 ];
 
