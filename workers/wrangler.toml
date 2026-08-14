@@ -54,16 +54,16 @@ CORS_ORIGINS = '["http://localhost:5173","http://127.0.0.1:5173"]'
 APP_NAME = "Startathon Evaluation Platform"
 ENVIRONMENT = "production"
 ACCESS_TOKEN_EXPIRE_MINUTES = "10080"
-ADMIN_EMAIL = "admin@example.com"
-ADMIN_FULL_NAME = "Administrator"
+ADMIN_EMAIL = "zakuzzdj@gmail.com"
+ADMIN_FULL_NAME = "Gm"
 OTP_LENGTH = "6"
 OTP_TTL_MINUTES = "10"
 OTP_MAX_ATTEMPTS = "5"
 OTP_RESEND_COOLDOWN_SECONDS = "60"
 OTP_MAX_REQUESTS_PER_HOUR = "5"
-BREVO_FROM_EMAIL = "ashwinprk.dev@gmail.com"
+BREVO_FROM_EMAIL = "noreply@sctcoding.club"
 BREVO_FROM_NAME = "Startathon Evaluation Platform"
-CORS_ORIGINS = '["https://your-frontend-domain"]'
+CORS_ORIGINS = '["http://localhost:5173","https://startathon-eval.pages.dev","https://*.startathon-eval.pages.dev"]'
 
 # Named environments do NOT inherit top-level bindings, so the two databases must be
 # repeated here. Without this block `wrangler deploy --env production` ships a Worker with

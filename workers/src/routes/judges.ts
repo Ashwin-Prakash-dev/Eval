@@ -137,9 +137,12 @@ judgeRoutes.delete("/allowed/:allowed_id", async (c) => {
   return c.body(null, 204);
 });
 
+// Reviewer performance, not account roster: sourced from listReviewers so an admin who
+// reviews gets stats too. It still renders correctly in the Judges & access table, which
+// already matches stats to allowed-email rows by user id regardless of role.
 judgeRoutes.get("/stats", async (c) => {
-  const judges = await userRepo.listReviewers(c.env.DB);
-  const stats = await computeJudgeStats(c.env.DB, judges);
+  const reviewers = await userRepo.listReviewers(c.env.DB);
+  const stats = await computeJudgeStats(c.env.DB, reviewers);
   return c.json(stats.map((s) => ({ ...s, judge: judgeOut(s.judge) })));
 });
 

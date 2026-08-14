@@ -14,10 +14,12 @@ interface ReportData {
 
 async function gatherReportData(db: D1Database, eventsDb: D1Database): Promise<ReportData> {
   const { entries } = await analytics.getLeaderboard(db, eventsDb, { page: 1, page_size: 100000 });
-  const judges = await userRepo.listReviewers(db);
+  // Report on everyone who actually reviewed, not just role = 'judge' accounts -- see
+  // userRepo.listReviewers.
+  const reviewers = await userRepo.listReviewers(db);
   return {
     rankings: entries,
-    judgeStats: await computeJudgeStats(db, judges),
+    judgeStats: await computeJudgeStats(db, reviewers),
     criterionAverages: await analytics.getCriterionAverages(db),
     criteriaNames: CRITERIA_ORDERED.map((c) => c.name),
     generatedAt: formatGeneratedAt(new Date()),

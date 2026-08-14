@@ -1,0 +1,8 @@
+# SPA fallback for Cloudflare Pages.
+#
+# React Router owns every path (/admin/coverage, /judge/evaluate/12, …) but those files do
+# not exist on disk. Without this rule Pages returns its own 404 on a refresh or a pasted
+# deep link, and the app only works if you always enter through "/".
+#
+# 200 (rewrite) rather than 302: the URL must stay as typed so the router can read it.
+/*    /index.html   200

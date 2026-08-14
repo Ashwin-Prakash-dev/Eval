@@ -22,10 +22,12 @@ import {
 } from "../services/scoring";
 
 /**
- * The judge's own view of their evaluation.
+ * The reviewer's own view of their evaluation -- a judge or an admin, since organisers judge
+ * too and both hit these routes through requireReviewer.
  *
  * `flagged_for_review` appears here and NOWHERE else: it is a private bookmark, so it must
- * not reach another judge or an admin. See adminEvaluationOut, which omits it.
+ * not reach another reviewer or the admin cross-reviewer view. See adminEvaluationOut, which
+ * omits it.
  */
 function evaluationOut(e: evaluationRepo.EvaluationWithDetail) {
   return {
@@ -122,20 +124,20 @@ evaluationRoutes.get("/submission/:submission_id/all", requireAdmin, async (c) =
 });
 
 /**
- * Every submission, with this judge's own evaluation state attached. Replaces the old
- * "/assigned" list: there is no allocation any more, so a judge's worklist is the whole
- * field and the ordering choice is theirs.
+ * Every submission, with this reviewer's own evaluation state attached. Replaces the old
+ * "/assigned" list: there is no allocation any more, so a reviewer's worklist -- judge or
+ * admin alike -- is the whole field and the ordering choice is theirs.
  *
  * `counted_reviews` lets the client warn that a submission already has its full complement
- * of scoring reviews before the judge spends time on it.
+ * of scoring reviews before the reviewer spends time on it.
  *
- * `needs_reevaluation` has to be here rather than only on the detail view: a judge must be
+ * `needs_reevaluation` has to be here rather than only on the detail view: a reviewer must be
  * able to spot a review invalidated by an applicant's edit from a plain refresh of this list,
  * without opening all of them to find out. It is computed inside the loop this route already
  * runs, from two reads that were already happening -- no extra query per row.
  */
 evaluationRoutes.get("/reviewable", requireReviewer, async (c) => {
-  const judge = c.get("user");
+  const reviewer = c.get("user");
   const criteria = CRITERIA_ORDERED.map(criterionBrief);
 
   const applications = await applicationRepo.listAll(c.env.EVENTS_DB);
@@ -146,7 +148,7 @@ evaluationRoutes.get("/reviewable", requireReviewer, async (c) => {
     c.env.EVENTS_DB,
     applications.map((a) => a.team_id)
   );
-  const mine = await evaluationRepo.listForJudge(c.env.DB, judge.id);
+  const mine = await evaluationRepo.listForJudge(c.env.DB, reviewer.id);
   const bySubmission = new Map(mine.map((e) => [e.submission_id, e]));
   const completedBy = await evaluationRepo.completedBySubmission(c.env.DB);
 
@@ -174,15 +176,15 @@ evaluationRoutes.get("/reviewable", requireReviewer, async (c) => {
 });
 
 evaluationRoutes.get("/progress", requireReviewer, async (c) => {
-  const judge = c.get("user");
-  const evaluations = await evaluationRepo.listForJudge(c.env.DB, judge.id);
+  const reviewer = c.get("user");
+  const evaluations = await evaluationRepo.listForJudge(c.env.DB, reviewer.id);
   const applications = await applicationRepo.listAll(c.env.EVENTS_DB);
   const hashes = await contentHashesByTeamId(applications);
   const total = applications.length;
 
   // A review invalidated by an applicant's edit stops counting as done. Every stale
   // evaluation is by definition 'completed', so it is subtracted from that count rather than
-  // from in_progress, and the judge's percentage drops to reflect the work that came back.
+  // from in_progress, and the reviewer's percentage drops to reflect the work that came back.
   const stale = evaluations.filter((e) =>
     needsReevaluation(e, hashes.get(e.submission_id) ?? null)
   ).length;
@@ -191,7 +193,7 @@ evaluationRoutes.get("/progress", requireReviewer, async (c) => {
 
   return c.json({
     // "Total" is now the whole field rather than an allocation, so not_started covers every
-    // submission this judge has never opened.
+    // submission this reviewer has never opened.
     total_assigned: total,
     completed,
     in_progress: inProgress,
@@ -203,24 +205,25 @@ evaluationRoutes.get("/progress", requireReviewer, async (c) => {
 });
 
 /**
- * Open a submission for review, creating this judge's evaluation on first visit. Replaces the
- * admin-side assignment step: a judge starts work simply by opening something.
+ * Open a submission for review, creating this reviewer's evaluation on first visit. Replaces
+ * the admin-side assignment step: a judge -- or an admin, since organisers judge too -- starts
+ * work simply by opening something.
  *
  * This is also where a review invalidated by an applicant's edit is discarded. That work is
  * done here rather than on any GET for two reasons: a read must never destroy data, and the
- * `needs_reevaluation` flag has to survive on the worklist until the judge actually acts on
+ * `needs_reevaluation` flag has to survive on the worklist until the reviewer actually acts on
  * it. Because the reset is irreversible, it happens only when `?confirm_reset=true` says the
- * judge was asked and agreed -- opening the page is not consent.
+ * reviewer was asked and agreed -- opening the page is not consent.
  */
 evaluationRoutes.post("/open/:submission_id", requireReviewer, async (c) => {
-  const judge = c.get("user");
+  const reviewer = c.get("user");
   const submissionId = c.req.param("submission_id");
 
   const application = await applicationRepo.get(c.env.EVENTS_DB, submissionId);
   if (!application) throw notFound("Submission not found");
 
   const currentHash = await applicationContentHash(application);
-  const evaluation = await evaluationRepo.getOrCreateForJudge(c.env.DB, submissionId, judge.id);
+  const evaluation = await evaluationRepo.getOrCreateForJudge(c.env.DB, submissionId, reviewer.id);
 
   if (!needsReevaluation(evaluation, currentHash)) {
     return c.json(evaluationOut(evaluation), 201);
@@ -239,7 +242,7 @@ evaluationRoutes.post("/open/:submission_id", requireReviewer, async (c) => {
   // the details payload instead.
   await auditRepo.create(
     c.env.DB,
-    judge.id,
+    reviewer.id,
     "reset_stale_evaluation",
     "evaluation",
     evaluation.id,
@@ -275,17 +278,17 @@ evaluationRoutes.post("/open/:submission_id", requireReviewer, async (c) => {
 async function ownedEvaluation(
   db: D1Database,
   evaluationId: number,
-  judgeId: number
+  reviewerId: number
 ): Promise<evaluationRepo.EvaluationWithDetail> {
   const evaluation = await evaluationRepo.get(db, evaluationId);
-  if (!evaluation || evaluation.judge_id !== judgeId) throw notFound("Evaluation not found");
+  if (!evaluation || evaluation.judge_id !== reviewerId) throw notFound("Evaluation not found");
   return evaluation;
 }
 
 evaluationRoutes.get("/:evaluation_id", requireReviewer, async (c) => {
   const evaluationId = intPathParam("evaluation_id", c.req.param("evaluation_id"));
-  const judge = c.get("user");
-  const evaluation = await ownedEvaluation(c.env.DB, evaluationId, judge.id);
+  const reviewer = c.get("user");
+  const evaluation = await ownedEvaluation(c.env.DB, evaluationId, reviewer.id);
 
   const criteria = CRITERIA_ORDERED.map(criterionBrief);
   const submission = await applicationRepo.get(c.env.EVENTS_DB, evaluation.submission_id);
@@ -293,7 +296,7 @@ evaluationRoutes.get("/:evaluation_id", requireReviewer, async (c) => {
   const currentHash = await applicationContentHash(submission);
   const members = await applicationRepo.membersForTeam(c.env.EVENTS_DB, submission.team_id);
 
-  // Whether this judge's review will move the score. Their own in-flight review is excluded
+  // Whether this reviewer's review will move the score. Their own in-flight review is excluded
   // from the count, so an unfinished review never reports itself as one of the five.
   const counted = await countedEvaluationIds(c.env.DB, evaluation.submission_id, currentHash);
   const countsTowardScore =
@@ -311,11 +314,11 @@ evaluationRoutes.get("/:evaluation_id", requireReviewer, async (c) => {
   });
 });
 
-/** Toggle this judge's private "come back to this" bookmark. */
+/** Toggle this reviewer's private "come back to this" bookmark. */
 evaluationRoutes.patch("/:evaluation_id/flag", requireReviewer, async (c) => {
   const evaluationId = intPathParam("evaluation_id", c.req.param("evaluation_id"));
-  const judge = c.get("user");
-  const evaluation = await ownedEvaluation(c.env.DB, evaluationId, judge.id);
+  const reviewer = c.get("user");
+  const evaluation = await ownedEvaluation(c.env.DB, evaluationId, reviewer.id);
   const payload = parseOrThrow(evaluationFlagSchema, await readJson(c.req), "body");
 
   await evaluationRepo.setFlagged(c.env.DB, evaluation.id, payload.flagged_for_review);
@@ -326,8 +329,8 @@ evaluationRoutes.patch("/:evaluation_id/flag", requireReviewer, async (c) => {
 
 evaluationRoutes.patch("/:evaluation_id", requireReviewer, async (c) => {
   const evaluationId = intPathParam("evaluation_id", c.req.param("evaluation_id"));
-  const judge = c.get("user");
-  const evaluation = await ownedEvaluation(c.env.DB, evaluationId, judge.id);
+  const reviewer = c.get("user");
+  const evaluation = await ownedEvaluation(c.env.DB, evaluationId, reviewer.id);
   const payload = parseOrThrow(evaluationAutosaveSchema, await readJson(c.req), "body");
 
   const application = await applicationRepo.get(c.env.EVENTS_DB, evaluation.submission_id);
