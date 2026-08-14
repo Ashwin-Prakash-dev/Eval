@@ -1,6 +1,6 @@
 import { formatDistanceToNow } from "date-fns";
 import { Bookmark, CheckCircle2, ClipboardList, Flag, Hourglass, RotateCcw, Search } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EVALUATION_STATUS_BADGE } from "@/lib/evaluation-status";
 import { evaluatePath } from "@/lib/review-routes";
@@ -30,6 +31,19 @@ const FILTER_LABELS: Record<Filter, string> = {
   flagged: "Flagged",
 };
 
+/**
+ * Domain is a separate axis from `Filter`, not another value in it.
+ *
+ * Folding it into the status buttons would make the two mutually exclusive -- picking a
+ * domain would silently drop the judge out of "Needs re-review" -- so it narrows whatever
+ * the status filter, search and sort are already doing rather than replacing any of them.
+ *
+ * Radix rejects an empty string as a SelectItem value, and both sentinels have to be
+ * distinguishable from a real domain name, hence the underscores.
+ */
+const DOMAIN_ANY = "__any__";
+const DOMAIN_NONE = "__none__";
+
 export function JudgeDashboardPage() {
   const navigate = useNavigate();
   // Admins review from inside the admin shell, so the evaluation URL differs by role.
@@ -42,6 +56,7 @@ export function JudgeDashboardPage() {
   const [filter, setFilter] = useState<Filter>("all");
   const [sort, setSort] = useState<Sort>("need");
   const [search, setSearch] = useState("");
+  const [domain, setDomain] = useState<string>(DOMAIN_ANY);
   /** The row awaiting confirmation that its invalidated review may be discarded. */
   const [pendingReset, setPendingReset] = useState<{ id: string; title: string } | null>(null);
 
@@ -78,6 +93,23 @@ export function JudgeDashboardPage() {
     );
   };
 
+  /**
+   * The domains actually present in this event, taken from the rows already loaded rather
+   * than a new endpoint. `undeclared` covers both null ("never answered") and [] ("declared
+   * none") -- the distinction matters when reading a submission but not when filtering by
+   * one, and lumping them together keeps those rows reachable instead of strandable.
+   */
+  const { domains: domainOptions, hasUndeclared } = useMemo(() => {
+    const seen = new Set<string>();
+    let undeclared = false;
+    for (const row of reviewable ?? []) {
+      const list = row.submission.domains;
+      if (list === null || list.length === 0) undeclared = true;
+      else for (const value of list) seen.add(value);
+    }
+    return { domains: [...seen].sort((a, b) => a.localeCompare(b)), hasUndeclared: undeclared };
+  }, [reviewable]);
+
   const term = search.trim().toLowerCase();
   const visible = (reviewable ?? [])
     .filter((row) => {
@@ -88,6 +120,15 @@ export function JudgeDashboardPage() {
       if (filter === "restale" && !row.needs_reevaluation) return false;
       if (filter === "flagged" && !row.evaluation?.flagged_for_review) return false;
       if (term && !row.submission.project_title.toLowerCase().includes(term)) return false;
+      // Narrows whatever the status filter above already selected, rather than overriding it.
+      if (domain !== DOMAIN_ANY) {
+        const list = row.submission.domains ?? [];
+        if (domain === DOMAIN_NONE) {
+          if (list.length > 0) return false;
+        } else if (!list.includes(domain)) {
+          return false;
+        }
+      }
       return true;
     })
     .sort((a, b) => {
@@ -164,6 +205,24 @@ export function JudgeDashboardPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
+        {/* Hidden entirely when no team declared a domain, rather than offering a control
+            whose only option is "no domain declared". */}
+        {domainOptions.length > 0 && (
+          <Select value={domain} onValueChange={setDomain}>
+            <SelectTrigger className="w-full sm:w-52" aria-label="Filter by domain">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={DOMAIN_ANY}>All domains</SelectItem>
+              {domainOptions.map((value) => (
+                <SelectItem key={value} value={value}>
+                  {value}
+                </SelectItem>
+              ))}
+              {hasUndeclared && <SelectItem value={DOMAIN_NONE}>No domain declared</SelectItem>}
+            </SelectContent>
+          </Select>
+        )}
         <div className="flex flex-wrap gap-2">
           {(["all", "unreviewed", "restale", "flagged"] as Filter[]).map((value) => (
             <Button
@@ -204,9 +263,11 @@ export function JudgeDashboardPage() {
           icon={ClipboardList}
           title="Nothing to show"
           description={
-            filter === "all"
-              ? "Submissions appear here once teams submit their application."
-              : "No submissions match this filter."
+            // Search and domain count as narrowing too, so an empty result while either is
+            // active is a filter miss rather than an empty event.
+            filter !== "all" || domain !== DOMAIN_ANY || term
+              ? "No submissions match these filters."
+              : "Submissions appear here once teams submit their application."
           }
         />
       ) : (
