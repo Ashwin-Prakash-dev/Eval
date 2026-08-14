@@ -37,7 +37,7 @@ export function CriterionScoreInput({
       <Slider
         min={1}
         max={10}
-        step={1}
+        step={0.5}
         value={[score ?? 5]}
         onValueChange={([value]) => onScoreChange(value)}
         aria-label={`${criterion.name} score`}

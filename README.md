@@ -1,6 +1,6 @@
-# Hackathon Evaluation Platform
+# Startathon Evaluation Platform
 
-An internal tool for organizers and judges to score hackathon submissions after
+An internal tool for organizers and judges to score Startathon submissions after
 the event website has already collected them. Not a public-facing site — there
 are exactly two roles (Admin, Judge), no participant accounts, and no public pages.
 

@@ -64,7 +64,7 @@ export function LoginPage() {
 
   return (
     <AuthLayout
-      title="Hackathon Evaluation Platform"
+      title="Startathon Evaluation Platform"
       description={
         step === "email"
           ? "Sign in with your approved email address"

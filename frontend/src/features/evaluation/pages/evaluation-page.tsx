@@ -86,10 +86,19 @@ function EvaluationWorkspace({
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "TEXTAREA" || tag === "INPUT") return;
 
+      const criterion = criteria[activeIndex];
+
       if (e.key >= "0" && e.key <= "9") {
         const value = e.key === "0" ? 10 : Number(e.key);
-        const criterion = criteria[activeIndex];
         if (criterion) autosave.updateScore(criterion.id, value);
+      } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        // Digits only reach whole numbers, so the half-points are nudged into place from
+        // here. Starts at 5 to match the slider's resting position for an unscored criterion.
+        if (!criterion) return;
+        e.preventDefault();
+        const current = autosave.scores[criterion.id]?.score ?? 5;
+        const next = e.key === "ArrowRight" ? current + 0.5 : current - 0.5;
+        autosave.updateScore(criterion.id, Math.min(10, Math.max(1, next)));
       } else if (e.key === "ArrowDown") {
         setActiveIndex((i) => Math.min(i + 1, criteria.length - 1));
       } else if (e.key === "ArrowUp") {

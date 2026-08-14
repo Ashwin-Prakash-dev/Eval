@@ -30,7 +30,7 @@ database_name = "scc_treasure_hunt_registrations"
 database_id = "2e8ed049-6348-4400-9ff5-a64e447fbe3d"
 
 [vars]
-APP_NAME = "Hackathon Evaluation Platform"
+APP_NAME = "Startathon Evaluation Platform"
 ENVIRONMENT = "development"
 ACCESS_TOKEN_EXPIRE_MINUTES = "10080"
 ADMIN_EMAIL = "admin@example.com"
@@ -41,7 +41,7 @@ OTP_MAX_ATTEMPTS = "5"
 OTP_RESEND_COOLDOWN_SECONDS = "60"
 OTP_MAX_REQUESTS_PER_HOUR = "5"
 BREVO_FROM_EMAIL = "noreply@sctcoding.club"
-BREVO_FROM_NAME = "Hackathon Evaluation Platform"
+BREVO_FROM_NAME = "Startathon Evaluation Platform"
 CORS_ORIGINS = '["http://localhost:5173","http://127.0.0.1:5173"]'
 
 # Secrets are never stored here. Set them with `wrangler secret put <NAME>`, and for local
@@ -51,7 +51,7 @@ CORS_ORIGINS = '["http://localhost:5173","http://127.0.0.1:5173"]'
 #   BREVO_API_KEY   - Brevo transactional email API key; unset means dev passcode echo
 
 [env.production.vars]
-APP_NAME = "Hackathon Evaluation Platform"
+APP_NAME = "Startathon Evaluation Platform"
 ENVIRONMENT = "production"
 ACCESS_TOKEN_EXPIRE_MINUTES = "10080"
 ADMIN_EMAIL = "admin@example.com"
@@ -62,7 +62,7 @@ OTP_MAX_ATTEMPTS = "5"
 OTP_RESEND_COOLDOWN_SECONDS = "60"
 OTP_MAX_REQUESTS_PER_HOUR = "5"
 BREVO_FROM_EMAIL = "ashwinprk.dev@gmail.com"
-BREVO_FROM_NAME = "Hackathon Evaluation Platform"
+BREVO_FROM_NAME = "Startathon Evaluation Platform"
 CORS_ORIGINS = '["https://your-frontend-domain"]'
 
 # Named environments do NOT inherit top-level bindings, so the two databases must be

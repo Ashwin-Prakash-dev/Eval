@@ -38,7 +38,7 @@ function originList(raw: string | undefined): string[] {
 export function getSettings(env: Env): Settings {
   const environment = env.ENVIRONMENT || "development";
   return {
-    appName: env.APP_NAME || "Hackathon Evaluation Platform",
+    appName: env.APP_NAME || "Startathon Evaluation Platform",
     environment,
     isDevelopment: environment !== "production",
     accessTokenExpireMinutes: int(env.ACCESS_TOKEN_EXPIRE_MINUTES, 60 * 24 * 7),
@@ -49,8 +49,8 @@ export function getSettings(env: Env): Settings {
     otpMaxAttempts: int(env.OTP_MAX_ATTEMPTS, 5),
     otpResendCooldownSeconds: int(env.OTP_RESEND_COOLDOWN_SECONDS, 60),
     otpMaxRequestsPerHour: int(env.OTP_MAX_REQUESTS_PER_HOUR, 5),
-    brevoFromEmail: env.BREVO_FROM_EMAIL || "no-reply@hackathon-eval.local",
-    brevoFromName: env.BREVO_FROM_NAME || "Hackathon Evaluation Platform",
+    brevoFromEmail: env.BREVO_FROM_EMAIL || "no-reply@startathon-eval.local",
+    brevoFromName: env.BREVO_FROM_NAME || "Startathon Evaluation Platform",
     corsOrigins: originList(env.CORS_ORIGINS),
     emailConfigured: Boolean(env.BREVO_API_KEY),
   };

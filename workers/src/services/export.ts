@@ -50,7 +50,7 @@ export async function buildCsv(db: D1Database, eventsDb: D1Database): Promise<Ui
   const data = await gatherReportData(db, eventsDb);
   let out = "";
 
-  out += csvRow([`Hackathon Evaluation Report - generated ${data.generatedAt}`]);
+  out += csvRow([`Startathon Evaluation Report - generated ${data.generatedAt}`]);
   out += csvRow([]);
 
   out += csvRow(["FINAL RANKINGS"]);
@@ -274,7 +274,7 @@ export async function buildPdf(db: D1Database, eventsDb: D1Database): Promise<Ui
     if (y < margin + lineHeight) newPage();
   };
 
-  write("Hackathon Evaluation Report", margin, 16, true);
+  write("Startathon Evaluation Report", margin, 16, true);
   advance(22);
   write(data.generatedAt, margin, 9, false);
   advance(20);

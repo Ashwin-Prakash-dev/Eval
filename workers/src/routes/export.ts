@@ -29,7 +29,7 @@ exportRoutes.get("/:export_format", async (c) => {
   return new Response(content, {
     headers: {
       "Content-Type": CONTENT_TYPES[format]!,
-      "Content-Disposition": `attachment; filename="hackathon-report.${format}"`,
+      "Content-Disposition": `attachment; filename="startathon-report.${format}"`,
     },
   });
 });
