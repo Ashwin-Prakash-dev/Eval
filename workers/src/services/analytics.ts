@@ -76,12 +76,23 @@ export async function getDashboardStats(db: D1Database, eventsDb: D1Database) {
 
 /**
  * Judge progress is now measured against the whole field rather than an allocation: with
- * assignments gone, "pending" means submissions this judge has not yet completed, not work
+ * assignments gone, "pending" means submissions this reviewer has not yet completed, not work
  * someone handed them.
+ *
+ * Scoped to users who have actually opened an evaluation, not to role = 'judge': admins may
+ * review too, and an admin who is out there scoring submissions should show up in coverage
+ * reporting the same as a judge would, rather than being invisible because their account also
+ * happens to have management rights. An admin who has never opened anything simply never
+ * appears here, same as a judge who never signed in.
  */
 export async function getJudgeProgress(db: D1Database, eventsDb: D1Database) {
   const { results: judges } = await db
-    .prepare("SELECT id, email, full_name FROM users WHERE role = 'judge' ORDER BY email")
+    .prepare(
+      `SELECT DISTINCT u.id, u.email, u.full_name
+       FROM users u
+       JOIN evaluations e ON e.judge_id = u.id
+       ORDER BY u.email`
+    )
     .all<{ id: number; email: string; full_name: string | null }>();
 
   const total = await applicationRepo.count(eventsDb);

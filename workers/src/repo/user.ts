@@ -44,6 +44,24 @@ export async function listJudges(db: D1Database, search?: string | null): Promis
   return results.map(toUser);
 }
 
+/**
+ * Anyone who has opened at least one evaluation, regardless of account role. Assignments are
+ * gone and admins may review too, so "who produced review data" is no longer the same
+ * question as "who holds the judge role" -- this answers the former, for performance
+ * reporting (judge stats, the report export). listJudges above still answers the latter, for
+ * the judge-account management screen, which is deliberately scoped to role = 'judge'.
+ */
+export async function listReviewers(db: D1Database): Promise<User[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT * FROM users
+       WHERE id IN (SELECT DISTINCT judge_id FROM evaluations)
+       ORDER BY created_at DESC`
+    )
+    .all<UserRow>();
+  return results.map(toUser);
+}
+
 export async function updateUser(
   db: D1Database,
   userId: number,

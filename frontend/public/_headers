@@ -1,0 +1,17 @@
+# Cloudflare Pages response headers.
+#
+# The app holds a JWT in localStorage and renders judge-facing data, so the defaults worth
+# setting are the ones that limit what another site can do with this origin.
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+
+# Vite emits content-hashed filenames under /assets, so those are safe to cache forever.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# index.html must never be cached: it is what points at the current hashed bundle, and a
+# stale copy sends browsers to asset URLs that no longer exist after a deploy.
+/index.html
+  Cache-Control: no-cache

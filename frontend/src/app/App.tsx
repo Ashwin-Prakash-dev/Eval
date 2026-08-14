@@ -48,6 +48,7 @@ const AuditLogPage = lazy(() => import("@/features/audit/pages/audit-log-page").
 const adminNav: NavItem[] = [
   { to: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/admin/submissions", label: "Submissions", icon: ClipboardList },
+  { to: "/judge/dashboard", label: "Review submissions", icon: ListChecks },
   { to: "/admin/coverage", label: "Coverage", icon: Gauge },
   { to: "/admin/judges", label: "Judges", icon: Users },
   { to: "/admin/analytics", label: "Analytics", icon: BarChart3 },
@@ -57,10 +58,35 @@ const adminNav: NavItem[] = [
 
 const judgeNav: NavItem[] = [{ to: "/judge/dashboard", label: "Your reviews", icon: ListChecks }];
 
+// An admin who follows "Review submissions" into the judge shell would otherwise have no way
+// back except the browser -- this is the same shell, just with an extra link home for the
+// role that has somewhere else to go.
+const adminReviewNav: NavItem[] = [
+  { to: "/admin/dashboard", label: "Back to admin", icon: LayoutDashboard },
+  { to: "/judge/dashboard", label: "Your reviews", icon: ListChecks },
+];
+
 function HomeRedirect() {
   const { token, user } = useAuthStore();
   if (!token || !user) return <Navigate to="/login" replace />;
   return <Navigate to={user.role === "admin" ? "/admin/dashboard" : "/judge/dashboard"} replace />;
+}
+
+/**
+ * The review pages are shared by both roles (see the required-changes note: reuse
+ * JudgeDashboardPage rather than forking it), so the shell around them picks its nav and brand
+ * from whoever is actually signed in rather than being fixed at the route level.
+ */
+function ReviewShell() {
+  const role = useAuthStore((s) => s.user?.role);
+  const isAdmin = role === "admin";
+  return (
+    <AppShell
+      navItems={isAdmin ? adminReviewNav : judgeNav}
+      brand={isAdmin ? "Eval Admin" : "Eval Judge"}
+      pageTitle="Review submissions"
+    />
+  );
 }
 
 function RouteFallback() {
@@ -79,7 +105,7 @@ export function App() {
         <Route path="/" element={<HomeRedirect />} />
         <Route path="/login" element={<LoginPage />} />
 
-        <Route element={<ProtectedRoute role="admin" />}>
+        <Route element={<ProtectedRoute roles={["admin"]} />}>
           <Route element={<AppShell navItems={adminNav} brand="Eval Admin" pageTitle="Administrator console" />}>
             <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
             <Route path="/admin/submissions" element={<SubmissionsPage />} />
@@ -92,8 +118,11 @@ export function App() {
           </Route>
         </Route>
 
-        <Route element={<ProtectedRoute role="judge" />}>
-          <Route element={<AppShell navItems={judgeNav} brand="Eval Judge" pageTitle="Judge console" />}>
+        {/* Organisers judge too: admins are admitted here alongside judges, matching
+            requireReviewer on the API side. Judges still cannot reach the admin-only routes
+            above. */}
+        <Route element={<ProtectedRoute roles={["judge", "admin"]} />}>
+          <Route element={<ReviewShell />}>
             <Route path="/judge/dashboard" element={<JudgeDashboardPage />} />
             <Route path="/judge/evaluate/:evaluationId" element={<EvaluationPage />} />
           </Route>
