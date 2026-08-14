@@ -42,7 +42,7 @@ export const CRITERIA: readonly Criterion[] = [
   },
   {
     id: 2,
-    name: "Technical Depth",
+    name: "Technical Capability",
     description: "Quality and sophistication of the implementation",
     weight: 25,
     order_index: 1,
