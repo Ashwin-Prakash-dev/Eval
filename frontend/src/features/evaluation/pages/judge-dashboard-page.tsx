@@ -232,7 +232,12 @@ export function JudgeDashboardPage() {
               >
                 <CardContent className="flex items-center justify-between gap-4 p-4">
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium">{submission.project_title}</p>
+                    <p className="font-medium">
+                      {submission.project_title}
+                      <span className="ml-2 text-xs font-normal text-muted-foreground">
+                        {submission.team_identifier}
+                      </span>
+                    </p>
                     <p className="truncate text-xs text-muted-foreground">{submission.short_description}</p>
                     {needs_reevaluation ? (
                       <p className="mt-1 text-xs font-medium text-warning-foreground/80">

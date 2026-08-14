@@ -50,7 +50,7 @@ function evaluationOut(e: evaluationRepo.EvaluationWithDetail) {
 /**
  * The admin's view of some other judge's evaluation. Built field by field rather than by
  * omitting from evaluationOut, so a new private field added above cannot leak here by
- * default -- the same discipline the submission serializers use for team_identifier.
+ * default -- the same field-by-field discipline the submission serializers use.
  */
 function adminEvaluationOut(
   e: evaluationRepo.EvaluationWithDetail & { judge_email: string; judge_full_name: string | null },
@@ -154,7 +154,6 @@ evaluationRoutes.get("/reviewable", requireReviewer, async (c) => {
         (e) => !needsReevaluation(e, currentHash)
       ).length;
       return {
-        // Judge-facing: structurally omits team_identifier.
         submission: submissionJudgeOut(application),
         evaluation: evaluation ? evaluationOut(evaluation) : null,
         needs_reevaluation: needsReevaluation(evaluation, currentHash),

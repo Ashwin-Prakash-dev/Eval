@@ -28,10 +28,14 @@ export interface SubmissionOut {
   updated_at: string | null;
 }
 
-/** Structurally omits team_identifier, so a judge view cannot render it. */
+/**
+ * Review is not blind: judges see the team name too. Still a distinct shape from
+ * SubmissionOut, which additionally carries created_at/updated_at.
+ */
 export interface SubmissionJudgeOut {
   id: string;
   project_title: string;
+  team_identifier: string;
   short_description: string;
   problem_evidence: string;
   domains: string[] | null;

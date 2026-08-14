@@ -1,16 +1,19 @@
 import type { ApplicationRow } from "../repo/application";
 
 /**
- * Team identity is enforced by type, not by filtering.
+ * Two shapes, built field by field.
  *
- * `SubmissionOut` (admin) carries `team_identifier`; `SubmissionJudgeOut` structurally has
- * no such field, so a judge-facing response physically cannot contain it. Both mappers
- * build their object field by field and never spread a database row — spreading would
- * reintroduce the leak the moment a new column is added. See backend/app/schemas/
- * submission.py, which used two separate Pydantic models for the same reason.
+ * Review is no longer blind: judges see `team_identifier` exactly as admins do. The masking
+ * that used to keep it out of `SubmissionJudgeOut` was removed deliberately -- once member
+ * details (GitHub, LinkedIn, resumes) reach the judge view, withholding the registered team
+ * name hides nothing and only makes the response harder to reason about.
  *
- * This matters more now than it did: every application row carries `team_name` from the
- * startathon join, so a judge response has to be built deliberately to keep it out.
+ * The two mappers stay separate regardless. They still differ -- `created_at` and
+ * `updated_at` are admin-only, since a judge has no use for them and `updated_at` is the
+ * signal the staleness check is built on. More to the point, neither mapper ever spreads a
+ * database row: every field is named. A new column added to the startathon side therefore
+ * reaches an API response only when someone writes it out here, which is the property worth
+ * keeping whether or not anything is currently being withheld.
  */
 
 export interface PriorWork {
@@ -36,6 +39,7 @@ export interface SubmissionOut {
 export interface SubmissionJudgeOut {
   id: string;
   project_title: string;
+  team_identifier: string;
   short_description: string;
   problem_evidence: string;
   domains: string[] | null;
@@ -96,6 +100,7 @@ export function submissionJudgeOut(row: ApplicationRow): SubmissionJudgeOut {
   return {
     id: row.team_id,
     project_title: row.title,
+    team_identifier: row.team_name,
     short_description: row.summary,
     problem_evidence: row.problem_evidence,
     domains: parseJsonArray<string>(row.domains),

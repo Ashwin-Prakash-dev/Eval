@@ -204,6 +204,7 @@ function EvaluationWorkspace({
           <Card>
             <CardHeader>
               <CardTitle>{submission.project_title}</CardTitle>
+              <p className="text-sm text-muted-foreground">{submission.team_identifier}</p>
             </CardHeader>
             <CardContent>
               <ApplicationDetails
