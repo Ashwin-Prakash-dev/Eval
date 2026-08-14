@@ -140,6 +140,12 @@ evaluationRoutes.get("/reviewable", requireReviewer, async (c) => {
 
   const applications = await applicationRepo.listAll(c.env.EVENTS_DB);
   const hashes = await contentHashesByTeamId(applications);
+  // One roster query for the entire field, joined in memory below. Fetching per row here
+  // would be an N+1 across every submission in the event.
+  const membersByTeam = await applicationRepo.membersByTeamIds(
+    c.env.EVENTS_DB,
+    applications.map((a) => a.team_id)
+  );
   const mine = await evaluationRepo.listForJudge(c.env.DB, judge.id);
   const bySubmission = new Map(mine.map((e) => [e.submission_id, e]));
   const completedBy = await evaluationRepo.completedBySubmission(c.env.DB);
@@ -154,7 +160,7 @@ evaluationRoutes.get("/reviewable", requireReviewer, async (c) => {
         (e) => !needsReevaluation(e, currentHash)
       ).length;
       return {
-        submission: submissionJudgeOut(application),
+        submission: submissionJudgeOut(application, membersByTeam.get(application.team_id) ?? []),
         evaluation: evaluation ? evaluationOut(evaluation) : null,
         needs_reevaluation: needsReevaluation(evaluation, currentHash),
         /** Sibling of `submission`, not part of it -- see toIso in the serializer. */
@@ -285,6 +291,7 @@ evaluationRoutes.get("/:evaluation_id", requireReviewer, async (c) => {
   const submission = await applicationRepo.get(c.env.EVENTS_DB, evaluation.submission_id);
   if (!submission) throw notFound("Evaluation not found");
   const currentHash = await applicationContentHash(submission);
+  const members = await applicationRepo.membersForTeam(c.env.EVENTS_DB, submission.team_id);
 
   // Whether this judge's review will move the score. Their own in-flight review is excluded
   // from the count, so an unfinished review never reports itself as one of the five.
@@ -294,7 +301,7 @@ evaluationRoutes.get("/:evaluation_id", requireReviewer, async (c) => {
 
   return c.json({
     evaluation: evaluationOut(evaluation),
-    submission: submissionJudgeOut(submission),
+    submission: submissionJudgeOut(submission, members),
     criteria,
     needs_reevaluation: needsReevaluation(evaluation, currentHash),
     submission_updated_at: toIso(submission.updated_at),

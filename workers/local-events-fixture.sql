@@ -37,6 +37,40 @@ CREATE TABLE IF NOT EXISTS startathon_applications (
   domains          TEXT
 );
 
+-- The team roster. Membership is a column here, not a join table, so "everyone on team X"
+-- is `WHERE team_id = 'X'`. Only `name` and `role` are ever read by this app -- the
+-- remaining columns exist so the fixture matches the real shape, not because anything here
+-- selects them.
+CREATE TABLE IF NOT EXISTS startathon_users (
+  user_id       TEXT PRIMARY KEY,
+  name          TEXT,
+  email         TEXT NOT NULL UNIQUE,
+  phone         TEXT,
+  college       TEXT,
+  password_hash TEXT,
+  google_id     TEXT UNIQUE,
+  team_id       TEXT REFERENCES startathon_teams(team_id),
+  role          TEXT CHECK (role IN ('leader', 'member')),
+  created_at    INTEGER NOT NULL,
+  gender        TEXT
+);
+
+-- Per-member application detail. A member who wrote nothing has NO ROW here, which is why
+-- every read is a LEFT JOIN from startathon_users -- see membersByTeamIds.
+CREATE TABLE IF NOT EXISTS startathon_application_members (
+  team_id       TEXT NOT NULL REFERENCES startathon_teams(team_id),
+  user_id       TEXT NOT NULL REFERENCES startathon_users(user_id),
+  about         TEXT,
+  resume_url    TEXT,
+  github        TEXT,
+  linkedin      TEXT,
+  project_links TEXT,
+  updated_at    INTEGER NOT NULL,
+  PRIMARY KEY (team_id, user_id)
+);
+
+DELETE FROM startathon_application_members;
+DELETE FROM startathon_users;
 DELETE FROM startathon_applications;
 DELETE FROM startathon_teams;
 
@@ -91,3 +125,66 @@ VALUES
    'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
    '[{"kind":"course-project","description":"Built a simpler version for a class, no code reused."}]',
    NULL, 1754870005, NULL);
+
+-- Rosters. Team sizes vary on purpose, and team_002 is the interesting one: four members of
+-- whom only two wrote anything. An INNER JOIN would render it as a two-person team, so this
+-- is the row that catches that regression.
+--
+-- user_010 has a NULL name (signed up via Google and never completed a profile), which the
+-- UI has to label rather than render as a blank line.
+INSERT INTO startathon_users (user_id, name, email, phone, college, team_id, role, created_at)
+VALUES
+  ('user_001', 'Anita Raghavan',  'anita@example.com',  '9000000001', 'SCT', 'team_001', 'leader', 1754860001),
+  ('user_006', 'Vikram Shenoy',   'vikram@example.com', '9000000006', 'SCT', 'team_001', 'member', 1754860006),
+
+  ('user_002', 'Deepa Nair',      'deepa@example.com',  '9000000002', 'SCT', 'team_002', 'leader', 1754860002),
+  ('user_007', 'Joel Mathew',     'joel@example.com',   '9000000007', 'SCT', 'team_002', 'member', 1754860007),
+  ('user_008', 'Sneha Pillai',    'sneha@example.com',  '9000000008', 'SCT', 'team_002', 'member', 1754860008),
+  ('user_009', 'Arjun Menon',     'arjun@example.com',  '9000000009', 'SCT', 'team_002', 'member', 1754860009),
+
+  ('user_003', 'Farah Rasheed',   'farah@example.com',  '9000000003', 'SCT', 'team_003', 'leader', 1754860003),
+  ('user_010', NULL,              'ghost@example.com',  NULL,         NULL,  'team_003', 'member', 1754860010),
+
+  ('user_004', 'Rohit Varma',     'rohit@example.com',  '9000000004', 'SCT', 'team_004', 'leader', 1754860004),
+
+  ('user_005', 'Latha Krishnan',  'latha@example.com',  '9000000005', 'SCT', 'team_005', 'leader', 1754860005);
+
+-- project_links covers the same three states as domains/prior_work: populated, explicitly
+-- empty, and never answered. team_004's leader has a row with every field NULL -- they
+-- opened the form and saved it blank, which is NOT the same as never having a row, and the
+-- serializer reports it as provided_details: true.
+INSERT INTO startathon_application_members
+  (team_id, user_id, about, resume_url, github, linkedin, project_links, updated_at)
+VALUES
+  ('team_001', 'user_001',
+   'Final-year EEE, builds toasters for fun.',
+   'https://drive.google.com/file/d/resume001/view',
+   'https://github.com/anitar', 'https://linkedin.com/in/anitar',
+   '["https://github.com/anitar/toaster","https://anitar.dev"]', 1754870101),
+
+  ('team_001', 'user_006',
+   'Firmware, mostly C.',
+   'https://drive.google.com/file/d/resume006/view',
+   'https://github.com/vikramsh', NULL,
+   '[]', 1754870106),
+
+  -- Only two of team_002's four members filled anything in.
+  ('team_002', 'user_002',
+   'Signal processing, some ML.',
+   'https://drive.google.com/file/d/resume002/view',
+   'https://github.com/deepan', 'https://linkedin.com/in/deepan',
+   NULL, 1754870102),
+
+  ('team_002', 'user_007',
+   NULL, NULL,
+   'https://github.com/joelm', NULL,
+   NULL, 1754870107),
+
+  ('team_003', 'user_003',
+   'Supply chain nerd.',
+   'https://drive.google.com/file/d/resume003/view',
+   NULL, 'https://linkedin.com/in/farahr',
+   '["https://farah.example.com/case-study"]', 1754870103),
+
+  -- Saved the form with nothing in it: a row exists, all fields NULL.
+  ('team_004', 'user_004', NULL, NULL, NULL, NULL, NULL, 1754870104);

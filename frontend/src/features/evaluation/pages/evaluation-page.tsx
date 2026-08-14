@@ -212,6 +212,7 @@ function EvaluationWorkspace({
                 problemEvidence={submission.problem_evidence}
                 domains={submission.domains}
                 priorWork={submission.prior_work}
+                members={submission.members}
               />
             </CardContent>
           </Card>

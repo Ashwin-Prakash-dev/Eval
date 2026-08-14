@@ -1,4 +1,4 @@
-import type { ApplicationRow } from "../repo/application";
+import type { ApplicationRow, MemberRow } from "../repo/application";
 
 /**
  * Two shapes, built field by field.
@@ -22,6 +22,32 @@ export interface PriorWork {
   description: string;
 }
 
+/**
+ * One person on the team.
+ *
+ * Present for every roster member, including those who wrote nothing -- `provided_details`
+ * says which is which, so the UI can show "nothing provided" rather than omitting them and
+ * making the team look smaller than it is.
+ *
+ * `name` stays nullable rather than being defaulted to the email or the id here: the two
+ * fallbacks read very differently in a UI and that is a rendering decision, not a
+ * serialization one. Nothing else from the user row crosses over -- no email, phone,
+ * college or gender.
+ */
+export interface MemberDetail {
+  user_id: string;
+  name: string | null;
+  is_leader: boolean;
+  /** False when this member has no row in startathon_application_members at all. */
+  provided_details: boolean;
+  about: string | null;
+  resume_url: string | null;
+  github: string | null;
+  linkedin: string | null;
+  /** null means never answered; [] means explicitly declared none. */
+  project_links: string[] | null;
+}
+
 export interface SubmissionOut {
   id: string;
   project_title: string;
@@ -32,6 +58,7 @@ export interface SubmissionOut {
   prior_work: PriorWork[] | null;
   deck_url: string;
   video_url: string;
+  members: MemberDetail[];
   created_at: string;
   updated_at: string | null;
 }
@@ -46,6 +73,7 @@ export interface SubmissionJudgeOut {
   prior_work: PriorWork[] | null;
   deck_url: string;
   video_url: string;
+  members: MemberDetail[];
 }
 
 /**
@@ -80,7 +108,28 @@ export function toIso(epoch: number | null): string | null {
   return new Date(ms).toISOString();
 }
 
-export function submissionOut(row: ApplicationRow): SubmissionOut {
+/**
+ * A member row whose detail columns are all null came from the LEFT JOIN finding nothing --
+ * that member is on the team but wrote nothing. `updated_at` is the discriminator rather
+ * than the content columns, because it is NOT NULL in
+ * `startathon_application_members`: a member who saved the form and then cleared every field
+ * still has a row, and is legitimately "provided details, all of them empty".
+ */
+function memberDetail(row: MemberRow): MemberDetail {
+  return {
+    user_id: row.user_id,
+    name: row.name,
+    is_leader: row.role === "leader",
+    provided_details: row.updated_at !== null,
+    about: row.about,
+    resume_url: row.resume_url,
+    github: row.github,
+    linkedin: row.linkedin,
+    project_links: parseJsonArray<string>(row.project_links),
+  };
+}
+
+export function submissionOut(row: ApplicationRow, members: MemberRow[] = []): SubmissionOut {
   return {
     id: row.team_id,
     project_title: row.title,
@@ -91,12 +140,16 @@ export function submissionOut(row: ApplicationRow): SubmissionOut {
     prior_work: parseJsonArray<PriorWork>(row.prior_work),
     deck_url: row.deck_url,
     video_url: row.video_url,
+    members: members.map(memberDetail),
     created_at: toIso(row.created_at) ?? "",
     updated_at: toIso(row.updated_at),
   };
 }
 
-export function submissionJudgeOut(row: ApplicationRow): SubmissionJudgeOut {
+export function submissionJudgeOut(
+  row: ApplicationRow,
+  members: MemberRow[] = []
+): SubmissionJudgeOut {
   return {
     id: row.team_id,
     project_title: row.title,
@@ -107,5 +160,6 @@ export function submissionJudgeOut(row: ApplicationRow): SubmissionJudgeOut {
     prior_work: parseJsonArray<PriorWork>(row.prior_work),
     deck_url: row.deck_url,
     video_url: row.video_url,
+    members: members.map(memberDetail),
   };
 }

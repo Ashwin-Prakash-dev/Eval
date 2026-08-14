@@ -26,8 +26,13 @@ submissionRoutes.get("/", async (c) => {
     pageSize,
     search
   );
+  // One roster query for the whole page rather than one per row.
+  const members = await applicationRepo.membersByTeamIds(
+    c.env.EVENTS_DB,
+    items.map((item) => item.team_id)
+  );
   return c.json({
-    items: items.map(submissionOut),
+    items: items.map((item) => submissionOut(item, members.get(item.team_id) ?? [])),
     total,
     page,
     page_size: pageSize,
@@ -38,5 +43,6 @@ submissionRoutes.get("/", async (c) => {
 submissionRoutes.get("/:submission_id", async (c) => {
   const application = await applicationRepo.get(c.env.EVENTS_DB, c.req.param("submission_id"));
   if (!application) throw notFound("Submission not found");
-  return c.json(submissionOut(application));
+  const members = await applicationRepo.membersForTeam(c.env.EVENTS_DB, application.team_id);
+  return c.json(submissionOut(application, members));
 });
