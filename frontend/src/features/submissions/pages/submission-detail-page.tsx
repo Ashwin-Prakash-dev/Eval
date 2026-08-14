@@ -36,9 +36,10 @@ export function SubmissionDetailPage() {
   const openMutation = useOpenSubmission();
   const review = () => {
     if (!submissionId) return;
-    openMutation.mutate(submissionId, {
-      onSuccess: (evaluation) => navigate(`/judge/evaluate/${evaluation.id}`),
-    });
+    openMutation.mutate(
+      { submissionId },
+      { onSuccess: (evaluation) => navigate(`/judge/evaluate/${evaluation.id}`) }
+    );
   };
 
   const [expanded, setExpanded] = useState<Set<number>>(new Set());

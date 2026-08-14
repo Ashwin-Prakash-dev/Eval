@@ -24,9 +24,10 @@ export function SubmissionsPage() {
   // judge dashboard uses gets a button here rather than a second copy of it.
   const openMutation = useOpenSubmission();
   const review = (submissionId: string) => {
-    openMutation.mutate(submissionId, {
-      onSuccess: (evaluation) => navigate(`/judge/evaluate/${evaluation.id}`),
-    });
+    openMutation.mutate(
+      { submissionId },
+      { onSuccess: (evaluation) => navigate(`/judge/evaluate/${evaluation.id}`) }
+    );
   };
 
   const params = {
