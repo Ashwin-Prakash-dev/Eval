@@ -43,7 +43,7 @@ export const CRITERIA: readonly Criterion[] = [
   {
     id: 2,
     name: "Technical Capability",
-    description: "Quality and sophistication of the implementation",
+    description: "Overall strength of team members based on provided profiles",
     weight: 25,
     order_index: 1,
   },
