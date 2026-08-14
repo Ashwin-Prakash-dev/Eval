@@ -14,11 +14,38 @@ import { judgeRoutes } from "./routes/judges";
 import { rubricRoutes } from "./routes/rubrics";
 import { submissionRoutes } from "./routes/submissions";
 
+/**
+ * Exact origin match, plus a single wildcard form: an entry like `https://*.pages.dev`
+ * matches any subdomain of that suffix.
+ *
+ * Cloudflare Pages gives every preview build its own hostname
+ * (`<hash>.<project>.pages.dev`), so an exact-only list silently breaks CORS on every
+ * preview while working fine in production.
+ *
+ * SCOPE THE WILDCARD TO THE PROJECT: use `https://*.eval-console.pages.dev`, never
+ * `https://*.pages.dev`. Anyone can deploy a Pages site, so the bare form would trust every
+ * Pages project on the internet with credentialed requests to this API.
+ *
+ * Returning undefined (rather than the request origin) for a non-match means no
+ * Access-Control-Allow-Origin header is sent and the browser blocks the response.
+ */
+function matchOrigin(origin: string, allowed: string[]): string | undefined {
+  for (const entry of allowed) {
+    if (entry === origin) return origin;
+    const wildcard = entry.match(/^(https?:\/\/)\*\.(.+)$/);
+    if (!wildcard) continue;
+    const [, scheme, suffix] = wildcard;
+    if (!suffix || !suffix.includes(".")) continue;
+    if (origin.startsWith(scheme!) && origin.endsWith(`.${suffix}`)) return origin;
+  }
+  return undefined;
+}
+
 const app = new Hono<AppEnv>();
 
 app.use("*", (c, next) =>
   cors({
-    origin: getSettings(c.env).corsOrigins,
+    origin: (origin) => matchOrigin(origin, getSettings(c.env).corsOrigins),
     credentials: true,
     allowMethods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
     allowHeaders: ["Authorization", "Content-Type"],

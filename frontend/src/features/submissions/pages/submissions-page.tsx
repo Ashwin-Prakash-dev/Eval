@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useOpenSubmission } from "@/features/evaluation/hooks";
 import { useDebouncedCallback } from "@/hooks/use-debounced-callback";
 import type { SubmissionOut } from "@/types/submission";
 
@@ -18,6 +19,15 @@ export function SubmissionsPage() {
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+
+  // Admins may review too (organisers judge as well), so the same open-or-create call the
+  // judge dashboard uses gets a button here rather than a second copy of it.
+  const openMutation = useOpenSubmission();
+  const review = (submissionId: string) => {
+    openMutation.mutate(submissionId, {
+      onSuccess: (evaluation) => navigate(`/judge/evaluate/${evaluation.id}`),
+    });
+  };
 
   const params = {
     page,
@@ -59,6 +69,22 @@ export function SubmissionsPage() {
           </div>
         );
       },
+    },
+    {
+      id: "review",
+      cell: ({ row }) => (
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={openMutation.isPending}
+          onClick={(e) => {
+            e.stopPropagation();
+            review(row.original.id);
+          }}
+        >
+          Review
+        </Button>
+      ),
     },
   ];
 

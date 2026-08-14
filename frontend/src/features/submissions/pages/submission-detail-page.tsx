@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { evaluationApi } from "@/features/evaluation/api";
+import { useOpenSubmission } from "@/features/evaluation/hooks";
 import { useActiveRubric } from "@/features/rubric/hooks";
 import { cn, formatScore } from "@/lib/utils";
 import type { EvaluationAdminOut } from "@/types/evaluation";
@@ -29,6 +30,16 @@ export function SubmissionDetailPage() {
   });
   const { data: rubric } = useActiveRubric();
   const criterionById = new Map((rubric?.criteria ?? []).map((c) => [c.id, c]));
+
+  // Same open-or-create call the judge dashboard uses, so an admin can start or continue
+  // reviewing this specific submission from here instead of hunting for it in the review list.
+  const openMutation = useOpenSubmission();
+  const review = () => {
+    if (!submissionId) return;
+    openMutation.mutate(submissionId, {
+      onSuccess: (evaluation) => navigate(`/judge/evaluate/${evaluation.id}`),
+    });
+  };
 
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const toggle = (evaluationId: number) =>
@@ -59,6 +70,11 @@ export function SubmissionDetailPage() {
       <PageHeader
         title={submission.project_title}
         description={`Team: ${submission.team_identifier}`}
+        actions={
+          <Button onClick={review} disabled={openMutation.isPending}>
+            Review this submission
+          </Button>
+        }
       />
 
       <div className="grid gap-6 lg:grid-cols-3">

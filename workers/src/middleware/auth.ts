@@ -44,7 +44,13 @@ export const requireAdmin = createMiddleware<AppEnv>(async (c, next) => {
   await next();
 });
 
-export const requireJudge = createMiddleware<AppEnv>(async (c, next) => {
-  if (c.get("user").role !== "judge") throw forbidden("Judge access required");
+/**
+ * Organisers judge too, so review endpoints admit both roles. requireAdmin above stays
+ * role==="admin" only, for the management surfaces (allowed emails, judge roster, audit log)
+ * that must stay out of a judge's reach.
+ */
+export const requireReviewer = createMiddleware<AppEnv>(async (c, next) => {
+  const role = c.get("user").role;
+  if (role !== "judge" && role !== "admin") throw forbidden("Judge or admin access required");
   await next();
 });
