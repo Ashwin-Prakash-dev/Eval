@@ -14,7 +14,9 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EVALUATION_STATUS_BADGE } from "@/lib/evaluation-status";
+import { evaluatePath } from "@/lib/review-routes";
 import { cn, formatScore } from "@/lib/utils";
+import { useAuthStore } from "@/store/auth-store";
 
 import { useJudgeProgress, useOpenSubmission, useReviewableSubmissions, useToggleFlag } from "../hooks";
 
@@ -30,6 +32,8 @@ const FILTER_LABELS: Record<Filter, string> = {
 
 export function JudgeDashboardPage() {
   const navigate = useNavigate();
+  // Admins review from inside the admin shell, so the evaluation URL differs by role.
+  const role = useAuthStore((s) => s.user?.role) ?? "judge";
   const { data: progress, isLoading: progressLoading } = useJudgeProgress();
   const { data: reviewable, isLoading: listLoading } = useReviewableSubmissions();
   const openMutation = useOpenSubmission();
@@ -52,12 +56,12 @@ export function JudgeDashboardPage() {
       return;
     }
     if (existingId !== null) {
-      navigate(`/judge/evaluate/${existingId}`);
+      navigate(evaluatePath(role, existingId));
       return;
     }
     openMutation.mutate(
       { submissionId },
-      { onSuccess: (evaluation) => navigate(`/judge/evaluate/${evaluation.id}`) }
+      { onSuccess: (evaluation) => navigate(evaluatePath(role, evaluation.id)) }
     );
   };
 
@@ -68,7 +72,7 @@ export function JudgeDashboardPage() {
       {
         onSuccess: (evaluation) => {
           setPendingReset(null);
-          navigate(`/judge/evaluate/${evaluation.id}`);
+          navigate(evaluatePath(role, evaluation.id));
         },
       }
     );

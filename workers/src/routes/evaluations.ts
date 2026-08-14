@@ -4,7 +4,7 @@ import { CRITERIA_ORDERED } from "../config/rubric";
 import { conflict, notFound } from "../http";
 import { nowIso } from "../lib/time";
 import { intPathParam, parseOrThrow, readJson } from "../lib/validate";
-import { requireAdmin, requireJudge, requireUser, type AppEnv } from "../middleware/auth";
+import { requireAdmin, requireReviewer, requireUser, type AppEnv } from "../middleware/auth";
 import * as applicationRepo from "../repo/application";
 import * as auditRepo from "../repo/audit";
 import * as evaluationRepo from "../repo/evaluation";
@@ -134,7 +134,7 @@ evaluationRoutes.get("/submission/:submission_id/all", requireAdmin, async (c) =
  * without opening all of them to find out. It is computed inside the loop this route already
  * runs, from two reads that were already happening -- no extra query per row.
  */
-evaluationRoutes.get("/reviewable", requireJudge, async (c) => {
+evaluationRoutes.get("/reviewable", requireReviewer, async (c) => {
   const judge = c.get("user");
   const criteria = CRITERIA_ORDERED.map(criterionBrief);
 
@@ -158,7 +158,7 @@ evaluationRoutes.get("/reviewable", requireJudge, async (c) => {
         submission: submissionJudgeOut(application),
         evaluation: evaluation ? evaluationOut(evaluation) : null,
         needs_reevaluation: needsReevaluation(evaluation, currentHash),
-        /** Sibling of `submission`, not part of it — see toIso in the serializer. */
+        /** Sibling of `submission`, not part of it -- see toIso in the serializer. */
         submission_updated_at: toIso(application.updated_at),
         counted_reviews: Math.min(completed, SCORING_EVALUATION_LIMIT),
         scoring_limit: SCORING_EVALUATION_LIMIT,
@@ -168,7 +168,7 @@ evaluationRoutes.get("/reviewable", requireJudge, async (c) => {
   );
 });
 
-evaluationRoutes.get("/progress", requireJudge, async (c) => {
+evaluationRoutes.get("/progress", requireReviewer, async (c) => {
   const judge = c.get("user");
   const evaluations = await evaluationRepo.listForJudge(c.env.DB, judge.id);
   const applications = await applicationRepo.listAll(c.env.EVENTS_DB);
@@ -207,7 +207,7 @@ evaluationRoutes.get("/progress", requireJudge, async (c) => {
  * it. Because the reset is irreversible, it happens only when `?confirm_reset=true` says the
  * judge was asked and agreed -- opening the page is not consent.
  */
-evaluationRoutes.post("/open/:submission_id", requireJudge, async (c) => {
+evaluationRoutes.post("/open/:submission_id", requireReviewer, async (c) => {
   const judge = c.get("user");
   const submissionId = c.req.param("submission_id");
 
@@ -277,7 +277,7 @@ async function ownedEvaluation(
   return evaluation;
 }
 
-evaluationRoutes.get("/:evaluation_id", requireJudge, async (c) => {
+evaluationRoutes.get("/:evaluation_id", requireReviewer, async (c) => {
   const evaluationId = intPathParam("evaluation_id", c.req.param("evaluation_id"));
   const judge = c.get("user");
   const evaluation = await ownedEvaluation(c.env.DB, evaluationId, judge.id);
@@ -306,7 +306,7 @@ evaluationRoutes.get("/:evaluation_id", requireJudge, async (c) => {
 });
 
 /** Toggle this judge's private "come back to this" bookmark. */
-evaluationRoutes.patch("/:evaluation_id/flag", requireJudge, async (c) => {
+evaluationRoutes.patch("/:evaluation_id/flag", requireReviewer, async (c) => {
   const evaluationId = intPathParam("evaluation_id", c.req.param("evaluation_id"));
   const judge = c.get("user");
   const evaluation = await ownedEvaluation(c.env.DB, evaluationId, judge.id);
@@ -318,7 +318,7 @@ evaluationRoutes.patch("/:evaluation_id/flag", requireJudge, async (c) => {
   return c.json(evaluationOut(refreshed));
 });
 
-evaluationRoutes.patch("/:evaluation_id", requireJudge, async (c) => {
+evaluationRoutes.patch("/:evaluation_id", requireReviewer, async (c) => {
   const evaluationId = intPathParam("evaluation_id", c.req.param("evaluation_id"));
   const judge = c.get("user");
   const evaluation = await ownedEvaluation(c.env.DB, evaluationId, judge.id);

@@ -48,6 +48,9 @@ const AuditLogPage = lazy(() => import("@/features/audit/pages/audit-log-page").
 const adminNav: NavItem[] = [
   { to: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/admin/submissions", label: "Submissions", icon: ClipboardList },
+  // Administrators review as well as oversee. This renders the same pages as the judge
+  // console, inside the admin shell -- see lib/review-routes.ts.
+  { to: "/admin/review", label: "Review submissions", icon: ListChecks },
   { to: "/admin/coverage", label: "Coverage", icon: Gauge },
   { to: "/admin/judges", label: "Judges", icon: Users },
   { to: "/admin/analytics", label: "Analytics", icon: BarChart3 },
@@ -84,6 +87,9 @@ export function App() {
             <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
             <Route path="/admin/submissions" element={<SubmissionsPage />} />
             <Route path="/admin/submissions/:id" element={<SubmissionDetailPage />} />
+            {/* Same components as the judge console; the admin shell stays in place. */}
+            <Route path="/admin/review" element={<JudgeDashboardPage />} />
+            <Route path="/admin/review/:evaluationId" element={<EvaluationPage />} />
             <Route path="/admin/coverage" element={<CoveragePage />} />
             <Route path="/admin/judges" element={<JudgesPage />} />
             <Route path="/admin/analytics" element={<AnalyticsPage />} />

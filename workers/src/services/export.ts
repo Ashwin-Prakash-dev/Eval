@@ -14,7 +14,7 @@ interface ReportData {
 
 async function gatherReportData(db: D1Database, eventsDb: D1Database): Promise<ReportData> {
   const { entries } = await analytics.getLeaderboard(db, eventsDb, { page: 1, page_size: 100000 });
-  const judges = await userRepo.listJudges(db);
+  const judges = await userRepo.listReviewers(db);
   return {
     rankings: entries,
     judgeStats: await computeJudgeStats(db, judges),

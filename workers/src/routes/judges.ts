@@ -138,14 +138,14 @@ judgeRoutes.delete("/allowed/:allowed_id", async (c) => {
 });
 
 judgeRoutes.get("/stats", async (c) => {
-  const judges = await userRepo.listJudges(c.env.DB);
+  const judges = await userRepo.listReviewers(c.env.DB);
   const stats = await computeJudgeStats(c.env.DB, judges);
   return c.json(stats.map((s) => ({ ...s, judge: judgeOut(s.judge) })));
 });
 
 /** Judges who have signed in at least once; /allowed covers the full approved list. */
 judgeRoutes.get("/", async (c) =>
-  c.json((await userRepo.listJudges(c.env.DB, c.req.query("search"))).map(judgeOut))
+  c.json((await userRepo.listReviewers(c.env.DB, c.req.query("search"))).map(judgeOut))
 );
 
 judgeRoutes.patch("/:judge_id", async (c) => {
@@ -153,19 +153,26 @@ judgeRoutes.patch("/:judge_id", async (c) => {
   const body = (await readJson(c.req)) as Record<string, unknown>;
   const payload = parseOrThrow(judgeUpdateSchema, body, "body");
 
+  const admin = c.get("user");
   const judge = await userRepo.getById(c.env.DB, judgeId);
-  if (!judge || judge.role !== "judge") throw notFound("Judge not found");
+  // Administrators appear in this list now that they review, so the guard admits them too.
+  if (!judge || (judge.role !== "judge" && judge.role !== "admin")) throw notFound("Judge not found");
 
   const patch: { full_name?: string | null; is_active?: boolean } = {};
   if (Object.prototype.hasOwnProperty.call(body, "full_name")) patch.full_name = payload.full_name;
   if (Object.prototype.hasOwnProperty.call(body, "is_active") && payload.is_active !== null) {
+    // Deactivating yourself would revoke your own console access on the next request, with no
+    // way back in unless another administrator happens to exist. Reviewers can still be
+    // deactivated, and other administrators can still be deactivated by a colleague.
+    if (payload.is_active === false && judge.id === admin.id) {
+      throw badRequest("You cannot deactivate your own account");
+    }
     patch.is_active = payload.is_active;
   }
 
   const updated = await userRepo.updateUser(c.env.DB, judgeId, patch);
   if (!updated) throw notFound("Judge not found");
 
-  const admin = c.get("user");
   await auditRepo.create(c.env.DB, admin.id, "update", "judge", judgeId, patch);
   return c.json(judgeOut(updated));
 });

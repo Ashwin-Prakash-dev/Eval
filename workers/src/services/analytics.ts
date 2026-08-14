@@ -45,7 +45,9 @@ export async function getDashboardStats(db: D1Database, eventsDb: D1Database) {
   const row = await db
     .prepare(
       `SELECT
-         (SELECT COUNT(*) FROM users WHERE role = 'judge') AS total_judges,
+         -- Administrators review too, so they count here: a "judges" figure that excluded
+         -- them would not match the number of people the progress chart lists.
+         (SELECT COUNT(*) FROM users WHERE role IN ('judge', 'admin')) AS total_judges,
          (SELECT COUNT(*) FROM evaluations) AS total_reviews,
          (SELECT COUNT(*) FROM evaluations WHERE status = 'completed') AS completed_reviews,
          (SELECT AVG(overall_score) FROM submission_scores) AS average_score`
@@ -81,7 +83,7 @@ export async function getDashboardStats(db: D1Database, eventsDb: D1Database) {
  */
 export async function getJudgeProgress(db: D1Database, eventsDb: D1Database) {
   const { results: judges } = await db
-    .prepare("SELECT id, email, full_name FROM users WHERE role = 'judge' ORDER BY email")
+    .prepare("SELECT id, email, full_name FROM users WHERE role IN ('judge', 'admin') ORDER BY email")
     .all<{ id: number; email: string; full_name: string | null }>();
 
   const total = await applicationRepo.count(eventsDb);

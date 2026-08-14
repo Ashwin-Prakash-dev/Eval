@@ -12,6 +12,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { evaluatePath } from "@/lib/review-routes";
+import { useAuthStore } from "@/store/auth-store";
 import type { EvaluationDetailOut, ReviewableOut } from "@/types/evaluation";
 
 import { CriterionScoreInput } from "../components/criterion-score-input";
@@ -53,6 +55,8 @@ function EvaluationWorkspace({
   reviewable: ReviewableOut[] | undefined;
 }) {
   const navigate = useNavigate();
+  // Admins review from inside the admin shell, so prev/next must stay on /admin/review/*.
+  const role = useAuthStore((s) => s.user?.role) ?? "judge";
   const [activeIndex, setActiveIndex] = useState(0);
   const [resetOpen, setResetOpen] = useState(false);
   const { submission, criteria } = data;
@@ -100,10 +104,10 @@ function EvaluationWorkspace({
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" disabled={!prevId} onClick={() => prevId && navigate(`/judge/evaluate/${prevId}`)}>
+          <Button variant="outline" size="sm" disabled={!prevId} onClick={() => prevId && navigate(evaluatePath(role, prevId))}>
             <ArrowLeft className="h-4 w-4" /> Previous
           </Button>
-          <Button variant="outline" size="sm" disabled={!nextId} onClick={() => nextId && navigate(`/judge/evaluate/${nextId}`)}>
+          <Button variant="outline" size="sm" disabled={!nextId} onClick={() => nextId && navigate(evaluatePath(role, nextId))}>
             Next <ArrowRight className="h-4 w-4" />
           </Button>
           <span className="ml-2 flex items-center gap-1.5 text-sm text-muted-foreground">
