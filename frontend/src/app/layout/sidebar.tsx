@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { ChevronsLeft, ChevronsRight, LayoutGrid } from "lucide-react";
+import { ChevronsLeft, ChevronsRight } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
@@ -23,8 +23,9 @@ export function Sidebar({ items, title }: { items: NavItem[]; title: string }) {
       className="sticky top-0 hidden h-screen shrink-0 flex-col border-r bg-card md:flex"
     >
       <div className="flex h-14 items-center gap-2 border-b px-4">
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
-          <LayoutGrid className="h-4 w-4" />
+        {/* Matches the favicon: an "S" mark, not the old grid glyph. */}
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary text-sm font-bold text-primary-foreground">
+          S
         </div>
         {!collapsed && <span className="truncate text-sm font-semibold">{title}</span>}
       </div>

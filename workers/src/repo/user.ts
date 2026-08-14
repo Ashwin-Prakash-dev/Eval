@@ -32,33 +32,23 @@ export async function createUser(
   return toUser(row);
 }
 
-export async function listJudges(db: D1Database, search?: string | null): Promise<User[]> {
+/**
+ * Everyone who may review, which includes administrators — see requireReviewer.
+ *
+ * Admins are listed here whether or not they have actually reviewed anything. The alternative,
+ * hiding them until their first review, would mean their reviews silently moved a submission's
+ * score before they appeared in any statistic that could account for it.
+ */
+export async function listReviewers(db: D1Database, search?: string | null): Promise<User[]> {
   const statement = search
     ? db
         .prepare(
-          "SELECT * FROM users WHERE role = 'judge' AND (email LIKE ?1 OR full_name LIKE ?1) ORDER BY created_at DESC"
+          `SELECT * FROM users WHERE role IN ('judge', 'admin')
+             AND (email LIKE ?1 OR full_name LIKE ?1) ORDER BY created_at DESC`
         )
         .bind(`%${search}%`)
-    : db.prepare("SELECT * FROM users WHERE role = 'judge' ORDER BY created_at DESC");
+    : db.prepare("SELECT * FROM users WHERE role IN ('judge', 'admin') ORDER BY created_at DESC");
   const { results } = await statement.all<UserRow>();
-  return results.map(toUser);
-}
-
-/**
- * Anyone who has opened at least one evaluation, regardless of account role. Assignments are
- * gone and admins may review too, so "who produced review data" is no longer the same
- * question as "who holds the judge role" -- this answers the former, for performance
- * reporting (judge stats, the report export). listJudges above still answers the latter, for
- * the judge-account management screen, which is deliberately scoped to role = 'judge'.
- */
-export async function listReviewers(db: D1Database): Promise<User[]> {
-  const { results } = await db
-    .prepare(
-      `SELECT * FROM users
-       WHERE id IN (SELECT DISTINCT judge_id FROM evaluations)
-       ORDER BY created_at DESC`
-    )
-    .all<UserRow>();
   return results.map(toUser);
 }
 

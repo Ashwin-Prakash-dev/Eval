@@ -1,6 +1,6 @@
-# Hackathon Evaluation Platform
+# Startathon Evaluation Platform
 
-An internal tool for organizers and judges to score hackathon submissions after
+An internal tool for organizers and judges to score Startathon submissions after
 the event website has already collected them. Not a public-facing site — there
 are exactly two roles (Admin, Judge), no participant accounts, and no public pages.
 
@@ -124,10 +124,11 @@ convenience for local development. For anything resembling production, either:
 
 ## Design notes worth knowing
 
-- **Team identity is enforced server-side.** `SubmissionOut` (admin) includes
-  `team_identifier`; `SubmissionJudgeOut` (judge) does not have the field at
-  all — it's not a UI toggle, so there's no way to leak it from the judge-facing
-  routes even by accident.
+- **Review is not blind.** Judges see `team_identifier` just as admins do.
+  `SubmissionOut` and `SubmissionJudgeOut` are still separate shapes — the admin
+  one additionally carries `created_at`/`updated_at` — and neither mapper ever
+  spreads a database row, so a new column on the startathon side reaches an API
+  response only when someone writes it out by name.
 - **File access is authorization-scoped, not just a static file mount.** Admins
   fetch submission files via `/api/submissions/{id}/file/{kind}`; judges fetch
   the same underlying file via `/api/evaluations/{evaluation_id}/file/{kind}`,

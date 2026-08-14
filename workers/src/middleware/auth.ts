@@ -45,12 +45,19 @@ export const requireAdmin = createMiddleware<AppEnv>(async (c, next) => {
 });
 
 /**
- * Organisers judge too, so review endpoints admit both roles. requireAdmin above stays
- * role==="admin" only, for the management surfaces (allowed emails, judge roster, audit log)
- * that must stay out of a judge's reach.
+ * Anyone who may review a submission — judges and administrators alike.
+ *
+ * `admin` is treated as a superset of `judge` rather than a sibling role, so an administrator
+ * both runs the event and scores in it. Their reviews are ordinary reviews: they occupy one of
+ * the five scoring slots, feed the aggregate, and appear in the judge statistics exactly like
+ * a judge's. Nothing downstream distinguishes them, which is the point -- a review is a review
+ * regardless of who left it.
+ *
+ * Deliberately NOT `requireUser` with a role check at each call site: the set of roles that may
+ * review is a single decision, and it belongs in one place.
  */
 export const requireReviewer = createMiddleware<AppEnv>(async (c, next) => {
-  const role = c.get("user").role;
-  if (role !== "judge" && role !== "admin") throw forbidden("Judge or admin access required");
+  const { role } = c.get("user");
+  if (role !== "judge" && role !== "admin") throw forbidden("Reviewer access required");
   await next();
 });

@@ -12,6 +12,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { evaluatePath } from "@/lib/review-routes";
+import { useAuthStore } from "@/store/auth-store";
 import type { EvaluationDetailOut, ReviewableOut } from "@/types/evaluation";
 
 import { CriterionScoreInput } from "../components/criterion-score-input";
@@ -53,6 +55,8 @@ function EvaluationWorkspace({
   reviewable: ReviewableOut[] | undefined;
 }) {
   const navigate = useNavigate();
+  // Admins review from inside the admin shell, so prev/next must stay on /admin/review/*.
+  const role = useAuthStore((s) => s.user?.role) ?? "judge";
   const [activeIndex, setActiveIndex] = useState(0);
   const [resetOpen, setResetOpen] = useState(false);
   const { submission, criteria } = data;
@@ -82,10 +86,19 @@ function EvaluationWorkspace({
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "TEXTAREA" || tag === "INPUT") return;
 
+      const criterion = criteria[activeIndex];
+
       if (e.key >= "0" && e.key <= "9") {
         const value = e.key === "0" ? 10 : Number(e.key);
-        const criterion = criteria[activeIndex];
         if (criterion) autosave.updateScore(criterion.id, value);
+      } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        // Digits only reach whole numbers, so the half-points are nudged into place from
+        // here. Starts at 5 to match the slider's resting position for an unscored criterion.
+        if (!criterion) return;
+        e.preventDefault();
+        const current = autosave.scores[criterion.id]?.score ?? 5;
+        const next = e.key === "ArrowRight" ? current + 0.5 : current - 0.5;
+        autosave.updateScore(criterion.id, Math.min(10, Math.max(1, next)));
       } else if (e.key === "ArrowDown") {
         setActiveIndex((i) => Math.min(i + 1, criteria.length - 1));
       } else if (e.key === "ArrowUp") {
@@ -100,10 +113,10 @@ function EvaluationWorkspace({
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" disabled={!prevId} onClick={() => prevId && navigate(`/judge/evaluate/${prevId}`)}>
+          <Button variant="outline" size="sm" disabled={!prevId} onClick={() => prevId && navigate(evaluatePath(role, prevId))}>
             <ArrowLeft className="h-4 w-4" /> Previous
           </Button>
-          <Button variant="outline" size="sm" disabled={!nextId} onClick={() => nextId && navigate(`/judge/evaluate/${nextId}`)}>
+          <Button variant="outline" size="sm" disabled={!nextId} onClick={() => nextId && navigate(evaluatePath(role, nextId))}>
             Next <ArrowRight className="h-4 w-4" />
           </Button>
           <span className="ml-2 flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -200,6 +213,7 @@ function EvaluationWorkspace({
           <Card>
             <CardHeader>
               <CardTitle>{submission.project_title}</CardTitle>
+              <p className="text-sm text-muted-foreground">{submission.team_identifier}</p>
             </CardHeader>
             <CardContent>
               <ApplicationDetails
@@ -207,6 +221,7 @@ function EvaluationWorkspace({
                 problemEvidence={submission.problem_evidence}
                 domains={submission.domains}
                 priorWork={submission.prior_work}
+                members={submission.members}
               />
             </CardContent>
           </Card>

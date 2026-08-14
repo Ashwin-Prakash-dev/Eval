@@ -23,7 +23,7 @@ export const exportApi = {
     const url = URL.createObjectURL(response.data);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `hackathon-report.${format}`;
+    link.download = `startathon-report.${format}`;
     document.body.appendChild(link);
     link.click();
     link.remove();
