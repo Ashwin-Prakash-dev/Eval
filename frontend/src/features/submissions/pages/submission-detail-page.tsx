@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ChevronDown, ChevronUp, Video } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronUp, RotateCcw, Video } from "lucide-react";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -143,13 +143,29 @@ function JudgeEvaluationRow({
         <div>
           <p className="font-medium">{evaluation.judge.full_name || evaluation.judge.email}</p>
           <div className="mt-1 flex flex-wrap items-center gap-1">
-            <Badge variant={evaluation.status === "completed" ? "success" : "secondary"}>
+            <Badge
+              variant={
+                evaluation.needs_reevaluation
+                  ? "warning"
+                  : evaluation.status === "completed"
+                    ? "success"
+                    : "secondary"
+              }
+            >
               {evaluation.status.replace("_", " ")}
             </Badge>
-            {/* Only the first five completed reviews move the score; the rest are recorded. */}
-            {evaluation.status === "completed" && !evaluation.counts_toward_score && (
-              <Badge variant="outline">not counted</Badge>
+            {/* The team edited the submission after this review was completed, so it counts
+                towards nothing until the judge redoes it. Amber, deliberately distinct from
+                the red "Disagreement" flag, which means something entirely different. */}
+            {evaluation.needs_reevaluation && (
+              <Badge variant="warning" className="gap-1">
+                <RotateCcw className="h-3 w-3" /> needs re-review
+              </Badge>
             )}
+            {/* Only the first five completed reviews move the score; the rest are recorded. */}
+            {evaluation.status === "completed" &&
+              !evaluation.counts_toward_score &&
+              !evaluation.needs_reevaluation && <Badge variant="outline">not counted</Badge>}
           </div>
         </div>
         <div className="flex items-center gap-2">

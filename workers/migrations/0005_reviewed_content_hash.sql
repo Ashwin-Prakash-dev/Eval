@@ -1,0 +1,36 @@
+-- Detects that an applicant edited their submission after judges reviewed it, so those
+-- reviews can be invalidated and redone. See src/services/revision.ts.
+--
+-- `reviewed_content_hash` is a SHA-256 over the application fields a judge actually reviews
+-- (title, summary, problem_evidence, deck_url, video_url, prior_work, domains), written at
+-- the moment an evaluation is COMPLETED. A submission is stale for that judge when the hash
+-- recomputed from the live `startathon_applications` row no longer matches.
+--
+-- Why a hash and not `startathon_applications.updated_at`:
+--
+-- 1. That column is nullable, has no default and no trigger, and is written by scc-api-worker
+--    -- a system outside this repo. If any edit path there forgets to bump it, a timestamp
+--    comparison fails silently and open forever. A content hash cannot miss an edit.
+--
+-- 2. It also cannot false-positive on a no-op re-save, which a timestamp would.
+--
+-- `updated_at` is still read and surfaced ("edited 2 hours ago"), but it is display only and
+-- never decides staleness.
+--
+-- Consequences baked in here:
+--
+-- 1. The column is NULLABLE with no backfill, because nothing in this database records what
+--    an already-completed evaluation was scored against. NULL therefore means "unknown", and
+--    src/services/revision.ts treats it as NOT stale on purpose: the alternative floods every
+--    judge's worklist with false alarms for every pre-existing review on the deploy.
+--
+-- 2. A plain ALTER TABLE rather than the create-copy-drop-rename dance the other migrations
+--    use. Those rewrote tables because they changed constraints or column types, which SQLite
+--    cannot do in place. Adding one nullable column needs no rewrite, and avoiding it keeps
+--    the `comments.evaluation_id` foreign key from being disturbed again.
+--
+-- 3. Nothing clears this column when a review is reset. Staleness is only ever evaluated for
+--    status = 'completed', so a leftover hash on a reset evaluation is inert, and a genuine
+--    re-completion overwrites it.
+
+ALTER TABLE evaluations ADD COLUMN reviewed_content_hash TEXT;

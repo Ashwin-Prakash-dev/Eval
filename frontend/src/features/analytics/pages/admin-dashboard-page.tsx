@@ -73,7 +73,11 @@ export function AdminDashboardPage() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                {entry.is_flagged && <Badge variant="destructive">Disagreement</Badge>}
+                {entry.needs_reevaluation ? (
+                      <Badge variant="warning">Needs re-review</Badge>
+                    ) : (
+                      entry.is_flagged && <Badge variant="destructive">Disagreement</Badge>
+                    )}
                 <span className="text-base font-semibold tabular-nums">{formatScore(entry.overall_score)}</span>
               </div>
             </Link>

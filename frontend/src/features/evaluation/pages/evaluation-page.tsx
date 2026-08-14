@@ -1,8 +1,10 @@
-import { ArrowLeft, ArrowRight, Bookmark, CheckCircle2, Info, LayoutList } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { ArrowLeft, ArrowRight, Bookmark, CheckCircle2, Info, LayoutList, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { ApplicationDetails } from "@/components/shared/application-details";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DeckLink, VideoEmbed } from "@/components/shared/media-viewer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,7 +16,12 @@ import type { EvaluationDetailOut, ReviewableOut } from "@/types/evaluation";
 
 import { CriterionScoreInput } from "../components/criterion-score-input";
 import { SaveStatusIndicator } from "../components/save-status-indicator";
-import { useEvaluationDetail, useReviewableSubmissions, useToggleFlag } from "../hooks";
+import {
+  useEvaluationDetail,
+  useOpenSubmission,
+  useReviewableSubmissions,
+  useToggleFlag,
+} from "../hooks";
 import { useEvaluationAutosave } from "../use-evaluation-autosave";
 
 export function EvaluationPage() {
@@ -47,8 +54,10 @@ function EvaluationWorkspace({
 }) {
   const navigate = useNavigate();
   const [activeIndex, setActiveIndex] = useState(0);
+  const [resetOpen, setResetOpen] = useState(false);
   const { submission, criteria } = data;
   const flagMutation = useToggleFlag();
+  const openMutation = useOpenSubmission();
   const autosave = useEvaluationAutosave(evaluationId, criteria, data.evaluation);
 
   const { currentPosition, prevId, nextId, remaining } = useMemo(() => {
@@ -61,7 +70,10 @@ function EvaluationWorkspace({
       currentPosition: idx + 1,
       prevId: idx > 0 ? opened[idx - 1]!.evaluation!.id : null,
       nextId: idx >= 0 && idx < opened.length - 1 ? opened[idx + 1]!.evaluation!.id : null,
-      remaining: reviewable.filter((r) => r.evaluation?.status !== "completed").length,
+      // A review invalidated by a later edit is outstanding work again, so it counts here.
+      remaining: reviewable.filter(
+        (r) => r.evaluation?.status !== "completed" || r.needs_reevaluation
+      ).length,
     };
   }, [reviewable, evaluationId]);
 
@@ -122,7 +134,32 @@ function EvaluationWorkspace({
         </div>
       </div>
 
-      {!data.counts_toward_score && (
+      {/* Reachable by prev/next or a bookmarked URL, which both bypass the dashboard's confirm
+          step. The scores below are the dead ones, so the banner has to be unmissable and the
+          same reset has to be offered here. */}
+      {data.needs_reevaluation && (
+        <div className="mb-4 flex items-start gap-2 rounded-md border border-warning/60 bg-warning/10 p-3 text-sm">
+          <RotateCcw className="mt-0.5 h-4 w-4 shrink-0 text-warning-foreground" />
+          <div className="flex-1">
+            <p className="font-medium">
+              The team edited this submission
+              {data.submission_updated_at
+                ? ` ${formatDistanceToNow(new Date(data.submission_updated_at), { addSuffix: true })}`
+                : ""}
+              , after you completed your review.
+            </p>
+            <p className="mt-0.5 text-muted-foreground">
+              The scores below were given to the previous version and no longer count towards
+              this submission. Start again to score what the team is putting forward now.
+            </p>
+          </div>
+          <Button size="sm" variant="outline" onClick={() => setResetOpen(true)}>
+            Start again
+          </Button>
+        </div>
+      )}
+
+      {!data.needs_reevaluation && !data.counts_toward_score && (
         <div className="mb-4 flex items-start gap-2 rounded-md border border-dashed p-3 text-sm text-muted-foreground">
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
           <span>
@@ -131,6 +168,28 @@ function EvaluationWorkspace({
           </span>
         </div>
       )}
+
+      <ConfirmDialog
+        open={resetOpen}
+        onOpenChange={setResetOpen}
+        title="Start this review again?"
+        description="This will permanently discard the scores and comments you gave the previous version of this submission, and open a blank review of the current one."
+        confirmLabel="Discard and review again"
+        isLoading={openMutation.isPending}
+        onConfirm={() =>
+          openMutation.mutate(
+            { submissionId: submission.id, confirmReset: true },
+            {
+              onSuccess: () => {
+                setResetOpen(false);
+                // Remounts the workspace against the now-blank evaluation; without this the
+                // form would still hold the discarded scores in local autosave state.
+                navigate(0);
+              },
+            }
+          )
+        }
+      />
 
       <div className="mb-4">
         <Progress value={reviewable?.length ? (currentPosition / reviewable.length) * 100 : 0} />

@@ -60,8 +60,15 @@ function parseJsonArray<T>(raw: string | null): T[] | null {
   }
 }
 
-/** Startathon timestamps are epoch integers; this API has always emitted ISO-8601. */
-function toIso(epoch: number | null): string | null {
+/**
+ * Startathon timestamps are epoch integers; this API has always emitted ISO-8601.
+ *
+ * Exported because the evaluation routes surface `submission_updated_at` alongside the
+ * staleness flag ("edited 2 hours ago"). It is passed as a sibling field rather than added to
+ * SubmissionJudgeOut, so that type keeps its guarantee of carrying nothing but what a judge
+ * may see.
+ */
+export function toIso(epoch: number | null): string | null {
   if (epoch === null) return null;
   // Written in seconds. Guard anyway: a millisecond value read as seconds lands in the
   // year 56000 and would silently sort to the end of every list.

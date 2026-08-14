@@ -85,7 +85,17 @@ export function LeaderboardPage() {
     },
     {
       header: "Flag",
-      cell: ({ row }) => (row.original.is_flagged ? <Badge variant="destructive">Disagreement</Badge> : null),
+      // Two different problems, two different colours. Red "Disagreement" means the judges
+      // scored it very differently; amber "Needs re-review" means the team edited it after it
+      // was judged, so there is no score to disagree about until it is reviewed again.
+      cell: ({ row }) =>
+        row.original.needs_reevaluation ? (
+          <Badge variant="warning" className="whitespace-nowrap">
+            Needs re-review
+          </Badge>
+        ) : row.original.is_flagged ? (
+          <Badge variant="destructive">Disagreement</Badge>
+        ) : null,
     },
   ];
 

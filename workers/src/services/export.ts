@@ -54,7 +54,12 @@ export async function buildCsv(db: D1Database, eventsDb: D1Database): Promise<Ui
   out += csvRow([]);
 
   out += csvRow(["FINAL RANKINGS"]);
-  out += csvRow(["Rank", "Project", "Overall Score", "Std Dev", "Reviews Completed", "Flagged"]);
+  // "Needs Re-review" explains an otherwise inexplicable blank score: the team edited the
+  // submission after it was judged, so the reviews were invalidated and it is unscored until
+  // they are redone. Without the column an exported ranking looks like missing data.
+  out += csvRow([
+    "Rank", "Project", "Overall Score", "Std Dev", "Reviews Completed", "Flagged", "Needs Re-review",
+  ]);
   for (const e of data.rankings) {
     out += csvRow([
       e.rank,
@@ -63,6 +68,7 @@ export async function buildCsv(db: D1Database, eventsDb: D1Database): Promise<Ui
       orBlank(e.std_dev),
       e.reviews_completed,
       yesNo(e.is_flagged),
+      yesNo(e.needs_reevaluation),
     ]);
   }
   out += csvRow([]);
@@ -156,10 +162,10 @@ export async function buildXlsx(db: D1Database, eventsDb: D1Database): Promise<U
     {
       name: "Rankings",
       rows: [
-        ["Rank", "Project", "Overall Score", "Std Dev", "Reviews Completed", "Flagged"],
+        ["Rank", "Project", "Overall Score", "Std Dev", "Reviews Completed", "Flagged", "Needs Re-review"],
         ...data.rankings.map((e) => [
           e.rank, e.project_title, e.overall_score,
-          e.std_dev, e.reviews_completed, yesNo(e.is_flagged),
+          e.std_dev, e.reviews_completed, yesNo(e.is_flagged), yesNo(e.needs_reevaluation),
         ] as Cell[]),
       ],
     },
@@ -296,7 +302,7 @@ export async function buildPdf(db: D1Database, eventsDb: D1Database): Promise<Ui
 
   table(
     "Final Rankings",
-    ["Rank", "Project", "Overall", "Std Dev", "Reviews", "Flagged"],
+    ["Rank", "Project", "Overall", "Std Dev", "Reviews", "Flagged", "Re-review"],
     data.rankings.map((e) => [
       String(e.rank),
       e.project_title,
@@ -304,8 +310,9 @@ export async function buildPdf(db: D1Database, eventsDb: D1Database): Promise<Ui
       e.std_dev === null ? "-" : e.std_dev.toFixed(2),
       String(e.reviews_completed),
       yesNo(e.is_flagged),
+      yesNo(e.needs_reevaluation),
     ]),
-    [40, 260, 70, 70, 60, 60]
+    [40, 210, 65, 65, 55, 55, 65]
   );
 
   table(

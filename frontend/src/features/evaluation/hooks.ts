@@ -15,12 +15,23 @@ export function useReviewableSubmissions() {
   return useQuery({ queryKey: evaluationKeys.reviewable, queryFn: evaluationApi.reviewable });
 }
 
-/** Creates this judge's evaluation on first open, then returns it so the caller can navigate. */
+/**
+ * Creates this judge's evaluation on first open, then returns it so the caller can navigate.
+ *
+ * Also the endpoint that discards a review the team invalidated by editing their submission,
+ * which is why `confirmReset` exists — see evaluationApi.open. That path deletes scores and
+ * rebuilds the submission's aggregate, so progress and the detail view are invalidated too.
+ */
 export function useOpenSubmission() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (submissionId: string) => evaluationApi.open(submissionId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: evaluationKeys.reviewable }),
+    mutationFn: ({ submissionId, confirmReset }: { submissionId: string; confirmReset?: boolean }) =>
+      evaluationApi.open(submissionId, confirmReset ?? false),
+    onSuccess: (evaluation) => {
+      qc.invalidateQueries({ queryKey: evaluationKeys.reviewable });
+      qc.invalidateQueries({ queryKey: evaluationKeys.progress });
+      qc.invalidateQueries({ queryKey: evaluationKeys.detail(evaluation.id) });
+    },
     onError: (error) => toast.error(apiErrorMessage(error, "Could not open this submission")),
   });
 }

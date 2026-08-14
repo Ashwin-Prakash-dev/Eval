@@ -10,8 +10,17 @@ import type {
 
 export const evaluationApi = {
   reviewable: () => apiClient.get<ReviewableOut[]>("/evaluations/reviewable").then((r) => r.data),
-  open: (submissionId: string) =>
-    apiClient.post<EvaluationOut>(`/evaluations/open/${submissionId}`).then((r) => r.data),
+  /**
+   * `confirmReset` is required only when the submission was edited after this judge completed
+   * their review. Without it the server refuses with a 409 rather than silently discarding
+   * their scores, so the judge is always asked before any work is destroyed.
+   */
+  open: (submissionId: string, confirmReset = false) =>
+    apiClient
+      .post<EvaluationOut>(
+        `/evaluations/open/${submissionId}${confirmReset ? "?confirm_reset=true" : ""}`
+      )
+      .then((r) => r.data),
   setFlag: (id: number, flagged: boolean) =>
     apiClient
       .patch<EvaluationOut>(`/evaluations/${id}/flag`, { flagged_for_review: flagged })

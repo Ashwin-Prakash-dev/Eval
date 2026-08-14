@@ -11,6 +11,11 @@ export interface EvaluationRow {
   completed_at: string | null;
   /** 0/1. A judge's private bookmark; never serialised into an admin response. */
   flagged_for_review: number;
+  /**
+   * SHA-256 of the application content this review was completed against, or NULL for a
+   * review completed before the column existed. See src/services/revision.ts.
+   */
+  reviewed_content_hash: string | null;
   updated_at: string;
 }
 
@@ -216,6 +221,7 @@ export async function applyAutosave(
     time_spent_seconds?: number;
     status?: string;
     completed_at?: string | null;
+    reviewed_content_hash?: string | null;
   }
 ): Promise<void> {
   const sets: string[] = [];
@@ -236,6 +242,10 @@ export async function applyAutosave(
     sets.push("completed_at = ?");
     values.push(fields.completed_at);
   }
+  if (fields.reviewed_content_hash !== undefined) {
+    sets.push("reviewed_content_hash = ?");
+    values.push(fields.reviewed_content_hash);
+  }
   sets.push("updated_at = ?");
   values.push(nowIso(), evaluationId);
   await db
@@ -244,18 +254,73 @@ export async function applyAutosave(
     .run();
 }
 
-/** Per-submission count of completed evaluations, for the judge's reviewable list. */
-export async function completedCountsBySubmission(
+/** The shape the staleness check needs; satisfies RevisionCheckable in services/revision.ts. */
+export interface CompletedEvaluationRef {
+  id: number;
+  status: string;
+  reviewed_content_hash: string | null;
+}
+
+/**
+ * Every completed evaluation, grouped by submission, carrying the hash of what it was scored
+ * against.
+ *
+ * Replaces the old `completedCountsBySubmission`, which returned a bare COUNT. A count can no
+ * longer be taken at face value: a completed review whose submission has since been edited
+ * must not be counted toward coverage or the score, and deciding that needs the hash. Callers
+ * filter with `needsReevaluation` and count what survives.
+ *
+ * One query for the whole field, so the callers that already loop over every application
+ * (the judge worklist, coverage, the leaderboard) stay at two reads rather than an N+1.
+ */
+export async function completedBySubmission(
   db: D1Database
-): Promise<Map<string, number>> {
+): Promise<Map<string, CompletedEvaluationRef[]>> {
   const { results } = await db
     .prepare(
-      `SELECT submission_id, COUNT(*) AS count
-       FROM evaluations WHERE status = 'completed'
-       GROUP BY submission_id`
+      `SELECT id, submission_id, status, reviewed_content_hash
+       FROM evaluations WHERE status = 'completed'`
     )
-    .all<{ submission_id: string; count: number }>();
-  return new Map(results.map((r) => [r.submission_id, r.count]));
+    .all<{ id: number; submission_id: string; status: string; reviewed_content_hash: string | null }>();
+
+  const bySubmission = new Map<string, CompletedEvaluationRef[]>();
+  for (const row of results) {
+    const list = bySubmission.get(row.submission_id) ?? [];
+    list.push({ id: row.id, status: row.status, reviewed_content_hash: row.reviewed_content_hash });
+    bySubmission.set(row.submission_id, list);
+  }
+  return bySubmission;
+}
+
+/**
+ * Discards a stale review and returns the evaluation to a blank not_started state.
+ *
+ * This is a HARD DELETE of the judge's scores and overall comment -- the deliberate choice
+ * over pre-filling the old values, so the judge re-reads changed content without being
+ * anchored to what they scored the previous version. Because that is irreversible, two things
+ * guard it: the caller records the discarded values in the audit log first, and the route
+ * requires an explicit confirmation before calling this at all.
+ *
+ * Batched so a failure cannot leave scores deleted but the row still marked completed.
+ * `reviewed_content_hash` is left alone on purpose: staleness is only ever evaluated for
+ * status = 'completed', so the leftover value is inert and a re-completion overwrites it.
+ */
+export async function resetForReevaluation(
+  db: D1Database,
+  evaluationId: number
+): Promise<void> {
+  await db.batch([
+    db.prepare("DELETE FROM evaluation_scores WHERE evaluation_id = ?").bind(evaluationId),
+    db.prepare("DELETE FROM comments WHERE evaluation_id = ?").bind(evaluationId),
+    db
+      .prepare(
+        `UPDATE evaluations
+         SET status = 'not_started', completed_at = NULL, started_at = NULL,
+             time_spent_seconds = 0, weighted_overall_score = NULL, updated_at = ?
+         WHERE id = ?`
+      )
+      .bind(nowIso(), evaluationId),
+  ]);
 }
 
 export async function setFlagged(

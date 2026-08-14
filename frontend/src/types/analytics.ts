@@ -20,7 +20,10 @@ export interface CoverageSubmission {
   id: string;
   project_title: string;
   team_identifier: string;
+  /** Excludes reviews invalidated by a later edit — they provide no coverage. */
   completed_reviews: number;
+  /** At least one completed review was invalidated when the team edited the submission. */
+  needs_reevaluation: boolean;
   needed: number;
   is_scored: boolean;
 }
@@ -62,6 +65,12 @@ export interface LeaderboardEntry {
   std_dev: number | null;
   reviews_completed: number;
   is_flagged: boolean;
+  /**
+   * The team edited the submission after it was reviewed. `overall_score` and `std_dev` are
+   * withheld (null) while this is true rather than reporting a figure computed from content
+   * that has since changed; `reviews_completed` counts only the reviews that still apply.
+   */
+  needs_reevaluation: boolean;
 }
 
 export interface AnalyticsOverview {

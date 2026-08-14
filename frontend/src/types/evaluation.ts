@@ -47,6 +47,17 @@ export interface EvaluationDetailOut {
   evaluation: EvaluationOut;
   submission: SubmissionJudgeOut;
   criteria: CriterionBrief[];
+  /**
+   * The team edited this submission after this review was completed, so the review no longer
+   * counts and has to be redone. Only ever true for a completed evaluation.
+   */
+  needs_reevaluation: boolean;
+  /**
+   * When the team last edited the submission, for display only — staleness is decided by a
+   * content hash, never by this timestamp. A sibling of `submission` rather than a field on
+   * it, so SubmissionJudgeOut keeps carrying nothing but what a judge may see.
+   */
+  submission_updated_at: string | null;
   counted_reviews: number;
   scoring_limit: number;
   /** False once five other judges have completed this submission first. */
@@ -57,6 +68,9 @@ export interface EvaluationDetailOut {
 export interface ReviewableOut {
   submission: SubmissionJudgeOut;
   evaluation: EvaluationOut | null;
+  /** Present on every row so staleness is visible from the list, without opening each one. */
+  needs_reevaluation: boolean;
+  submission_updated_at: string | null;
   counted_reviews: number;
   scoring_limit: number;
   criteria: CriterionBrief[];
@@ -83,6 +97,11 @@ export interface EvaluationAdminOut {
   updated_at: string;
   /** Whether this review is one of the first five completed, i.e. whether it moved the score. */
   counts_toward_score: boolean;
+  /**
+   * The team edited the submission after this judge completed their review, so it no longer
+   * counts. Not the same as the submission's is_flagged, which means judges disagreed.
+   */
+  needs_reevaluation: boolean;
   overall_comment: string | null;
   scores: ScoreOut[];
   judge: EvaluationJudgeBrief;
@@ -93,6 +112,8 @@ export interface JudgeProgressOut {
   total_assigned: number;
   completed: number;
   in_progress: number;
+  /** Completed reviews invalidated by a later edit; excluded from `completed`. */
+  needs_reevaluation: number;
   not_started: number;
   percent_complete: number;
   flagged: number;

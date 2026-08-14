@@ -2,6 +2,7 @@ import { CRITERIA_ORDERED, CRITERION_NAMES } from "../config/rubric";
 import { fmean, pyRound } from "../lib/stats";
 import * as applicationRepo from "../repo/application";
 import * as evaluationRepo from "../repo/evaluation";
+import { contentHashesByTeamId, needsReevaluation } from "./revision";
 import { SCORING_EVALUATION_LIMIT } from "./scoring";
 
 /** Ported from backend/app/services/analytics_service.py. */
@@ -22,6 +23,8 @@ export interface LeaderboardEntry {
   std_dev: number | null;
   reviews_completed: number;
   is_flagged: boolean;
+  /** The team edited the submission after it was reviewed; the score is withheld until redone. */
+  needs_reevaluation: boolean;
 }
 
 interface LeaderboardRow {
@@ -32,6 +35,7 @@ interface LeaderboardRow {
   std_dev: number | null;
   reviews_completed: number | null;
   is_flagged: number | null;
+  needs_reevaluation: boolean;
 }
 
 export async function getDashboardStats(db: D1Database, eventsDb: D1Database) {
@@ -190,16 +194,33 @@ export async function getLeaderboard(
     }>();
   const scoreById = new Map(scoreRows.map((r) => [r.submission_id, r]));
 
+  // `submission_scores` is materialized, so it still describes the version that was reviewed
+  // until something triggers a recompute. Detecting staleness here means an edited submission
+  // stops showing a score the moment anyone loads the leaderboard, rather than whenever a
+  // judge next happens to touch it.
+  const hashes = await contentHashesByTeamId(filtered);
+  const completedBy = await evaluationRepo.completedBySubmission(db);
+
   const rows: LeaderboardRow[] = filtered.map((a) => {
     const score = scoreById.get(a.team_id);
+    const currentHash = hashes.get(a.team_id) ?? null;
+    const completed = completedBy.get(a.team_id) ?? [];
+    const valid = completed.filter((e) => !needsReevaluation(e, currentHash)).length;
+    const isStale = valid < completed.length;
+
+    // The stored aggregate was computed from reviews that no longer all apply, and rebuilding
+    // it properly is a write, which a read must not do. So the number is withheld rather than
+    // guessed at: a null score with a flag beside it is honest, a mean over content that has
+    // since changed is not. The real figure returns the moment the reviews are redone.
     return {
       id: a.team_id,
       project_title: a.title,
-      overall_score: score?.overall_score ?? null,
-      criterion_means: score?.criterion_means ?? null,
-      std_dev: score?.std_dev ?? null,
-      reviews_completed: score?.reviews_completed ?? null,
-      is_flagged: score?.is_flagged ?? null,
+      overall_score: isStale ? null : score?.overall_score ?? null,
+      criterion_means: isStale ? null : score?.criterion_means ?? null,
+      std_dev: isStale ? null : score?.std_dev ?? null,
+      reviews_completed: isStale ? valid : score?.reviews_completed ?? null,
+      is_flagged: isStale ? 0 : score?.is_flagged ?? null,
+      needs_reevaluation: isStale,
     };
   });
   const total = rows.length;
@@ -241,6 +262,7 @@ export async function getLeaderboard(
       std_dev: row.std_dev,
       reviews_completed: row.reviews_completed ?? 0,
       is_flagged: row.is_flagged === 1,
+      needs_reevaluation: row.needs_reevaluation,
     };
   });
 
@@ -260,16 +282,23 @@ export async function getLeaderboard(
  */
 export async function getCoverage(db: D1Database, eventsDb: D1Database) {
   const applications = await applicationRepo.listAll(eventsDb);
-  const completedCounts = await evaluationRepo.completedCountsBySubmission(db);
+  const hashes = await contentHashesByTeamId(applications);
+  const completedBy = await evaluationRepo.completedBySubmission(db);
 
   const submissions = applications
     .map((application) => {
-      const completed = completedCounts.get(application.team_id) ?? 0;
+      const currentHash = hashes.get(application.team_id) ?? null;
+      const all = completedBy.get(application.team_id) ?? [];
+      // Reviews of a since-edited version do not provide coverage: without this filter a
+      // submission whose five reviews were all invalidated would report as fully scored,
+      // which is precisely the question this page exists to answer correctly.
+      const completed = all.filter((e) => !needsReevaluation(e, currentHash)).length;
       return {
         id: application.team_id,
         project_title: application.title,
         team_identifier: application.team_name,
         completed_reviews: completed,
+        needs_reevaluation: completed < all.length,
         needed: Math.max(SCORING_EVALUATION_LIMIT - completed, 0),
         is_scored: completed >= SCORING_EVALUATION_LIMIT,
       };

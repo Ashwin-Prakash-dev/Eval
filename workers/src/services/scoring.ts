@@ -1,6 +1,7 @@
 import { CRITERION_WEIGHTS, DISAGREEMENT_THRESHOLD } from "../config/rubric";
 import { fmean, pstdev, pyRound } from "../lib/stats";
 import { nowIso } from "../lib/time";
+import { needsReevaluation } from "./revision";
 
 export interface SubmissionScoreRow {
   submission_id: string;
@@ -46,26 +47,48 @@ function weightedOverall(
 export const SCORING_EVALUATION_LIMIT = 5;
 
 /**
+ * Completed evaluations for a submission, oldest completion first, with the ones made against
+ * content the applicant has since edited removed.
+ *
+ * The stale filter runs in application code rather than SQL because the comparison value
+ * lives in the other database -- `currentHash` is derived from the live
+ * `startathon_applications` row, which D1 cannot join to from here.
+ */
+async function validCompleted(
+  db: D1Database,
+  submissionId: string,
+  currentHash: string | null
+): Promise<number[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT id, status, reviewed_content_hash FROM evaluations
+       WHERE submission_id = ? AND status = 'completed'
+       ORDER BY completed_at ASC, id ASC`
+    )
+    .bind(submissionId)
+    .all<{ id: number; status: string; reviewed_content_hash: string | null }>();
+
+  return results.filter((r) => !needsReevaluation(r, currentHash)).map((r) => r.id);
+}
+
+/**
  * The completed evaluations that count toward the score, oldest completion first.
  *
  * `completed_at` is the ordering key rather than `started_at`, so a judge who opens a
  * submission and abandons it never occupies one of the five slots. `id` breaks ties for two
  * completions in the same millisecond, making the selection deterministic.
+ *
+ * A review of a since-edited version does not occupy a slot either: it is dropped before the
+ * limit is applied, so invalidating four stale reviews reopens four slots rather than leaving
+ * the submission looking fully scored.
  */
 export async function countedEvaluationIds(
   db: D1Database,
-  submissionId: string
+  submissionId: string,
+  currentHash: string | null
 ): Promise<number[]> {
-  const { results } = await db
-    .prepare(
-      `SELECT id FROM evaluations
-       WHERE submission_id = ? AND status = 'completed'
-       ORDER BY completed_at ASC, id ASC
-       LIMIT ?`
-    )
-    .bind(submissionId, SCORING_EVALUATION_LIMIT)
-    .all<{ id: number }>();
-  return results.map((r) => r.id);
+  const valid = await validCompleted(db, submissionId, currentHash);
+  return valid.slice(0, SCORING_EVALUATION_LIMIT);
 }
 
 /**
@@ -73,34 +96,35 @@ export async function countedEvaluationIds(
  * backend/app/services/scoring_service.py. Runs synchronously whenever an evaluation is
  * completed or edited, exactly as before.
  *
- * Every completed evaluation gets its own `weighted_overall_score` written, including ones
- * beyond the limit -- an admin still needs to see what the sixth judge thought. Only the
+ * Every valid completed evaluation gets its own `weighted_overall_score` written, including
+ * ones beyond the limit -- an admin still needs to see what the sixth judge thought. Only the
  * counted ones feed the submission aggregate.
+ *
+ * `currentHash` is the hash of the submission's live content (null when the application no
+ * longer exists). Reviews made against different content are excluded entirely: they neither
+ * feed the aggregate nor consume one of the five slots, and their stored
+ * `weighted_overall_score` is left untouched as the historical record of what that judge gave
+ * the version they actually saw. When every review is stale the aggregate collapses to a null
+ * score with zero reviews, which is what makes the submission drop out of the rankings until
+ * it is reviewed again.
  */
 export async function recomputeSubmissionScore(
   db: D1Database,
-  submissionId: string
+  submissionId: string,
+  currentHash: string | null
 ): Promise<void> {
   const weightByCriterion = CRITERION_WEIGHTS;
   const threshold = DISAGREEMENT_THRESHOLD;
 
-  const { results: completed } = await db
-    .prepare(
-      `SELECT id FROM evaluations
-       WHERE submission_id = ? AND status = 'completed'
-       ORDER BY completed_at ASC, id ASC`
-    )
-    .bind(submissionId)
-    .all<{ id: number }>();
-
-  // The same ordering as countedEvaluationIds, so "the first five" means the same thing in
-  // both places without a second query.
-  const counted = new Set(completed.slice(0, SCORING_EVALUATION_LIMIT).map((r) => r.id));
+  // The same ordering and the same stale filter as countedEvaluationIds, so "the first five"
+  // means the same thing in both places.
+  const completed = await validCompleted(db, submissionId, currentHash);
+  const counted = new Set(completed.slice(0, SCORING_EVALUATION_LIMIT));
 
   const perJudgeOverall: number[] = [];
   const perCriterionValues = new Map<number, number[]>();
 
-  for (const { id } of completed) {
+  for (const id of completed) {
     const { results: scores } = await db
       .prepare("SELECT criterion_id, score FROM evaluation_scores WHERE evaluation_id = ?")
       .bind(id)
@@ -111,7 +135,8 @@ export async function recomputeSubmissionScore(
       if (s.score !== null) scoresByCriterion.set(s.criterion_id, s.score);
     }
     const overall = weightedOverall(scoresByCriterion, weightByCriterion);
-    // Written for every completed evaluation, counted or not: this is the judge's own score.
+    // Written for every valid completed evaluation, counted or not: this is the judge's own
+    // score. Stale ones never reach here, so theirs is preserved as it was.
     await db
       .prepare("UPDATE evaluations SET weighted_overall_score = ? WHERE id = ?")
       .bind(overall === null ? null : pyRound(overall, 3), id)

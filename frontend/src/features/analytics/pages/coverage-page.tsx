@@ -59,8 +59,15 @@ export function CoveragePage() {
     },
     {
       header: "Status",
+      // Checked before "Scored": a submission edited after collecting its five reviews has a
+      // full count of reviews that no longer apply, and reporting it as scored is exactly the
+      // false reassurance this page exists to prevent.
       cell: ({ row }) =>
-        row.original.is_scored ? (
+        row.original.needs_reevaluation ? (
+          <Badge variant="warning" className="whitespace-nowrap">
+            Edited after review
+          </Badge>
+        ) : row.original.is_scored ? (
           <Badge variant="success">Scored</Badge>
         ) : row.original.completed_reviews === 0 ? (
           <Badge variant="destructive">No reviews</Badge>
