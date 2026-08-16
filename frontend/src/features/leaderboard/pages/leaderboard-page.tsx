@@ -13,18 +13,24 @@ import { ExportMenu } from "@/features/analytics/components/export-menu";
 import { useLeaderboard } from "@/features/analytics/hooks";
 import { useDebouncedCallback } from "@/hooks/use-debounced-callback";
 import { cn, formatScore } from "@/lib/utils";
+import { useAuthStore } from "@/store/auth-store";
 import type { LeaderboardEntry } from "@/types/analytics";
 
+/** Sorting by std-dev is offered only to admins, who are the only ones shown the column. */
 const sortOptions = [
-  { value: "overall_score", label: "Overall score" },
-  { value: "std_dev", label: "Std. deviation" },
-  { value: "reviews_completed", label: "Reviews completed" },
-  { value: "project_title", label: "Project title" },
+  { value: "overall_score", label: "Overall score", adminOnly: false },
+  { value: "std_dev", label: "Std. deviation", adminOnly: true },
+  { value: "reviews_completed", label: "Reviews completed", adminOnly: false },
+  { value: "project_title", label: "Project title", adminOnly: false },
 ];
 
 export function LeaderboardPage() {
   const [page, setPage] = useState(1);
   const navigate = useNavigate();
+  // Judges see the result; admins additionally see how much the judges diverged, can export,
+  // and can click through to a submission. The server strips the extra fields either way --
+  // this only decides what is rendered and offered.
+  const isAdmin = useAuthStore((s) => s.user?.role) === "admin";
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("overall_score");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -75,33 +81,48 @@ export function LeaderboardPage() {
         </div>
       ),
     },
-    {
-      header: "Std dev",
-      cell: ({ row }) => formatScore(row.original.std_dev),
-    },
+    ...(isAdmin
+      ? ([
+          {
+            header: "Std dev",
+            cell: ({ row }) => formatScore(row.original.std_dev ?? null),
+          },
+        ] satisfies ColumnDef<LeaderboardEntry>[])
+      : []),
     {
       header: "Reviews",
       cell: ({ row }) => row.original.reviews_completed,
     },
-    {
-      header: "Flag",
-      // Two different problems, two different colours. Red "Disagreement" means the judges
-      // scored it very differently; amber "Needs re-review" means the team edited it after it
-      // was judged, so there is no score to disagree about until it is reviewed again.
-      cell: ({ row }) =>
-        row.original.needs_reevaluation ? (
-          <Badge variant="warning" className="whitespace-nowrap">
-            Needs re-review
-          </Badge>
-        ) : row.original.is_flagged ? (
-          <Badge variant="destructive">Disagreement</Badge>
-        ) : null,
-    },
+    ...(isAdmin
+      ? ([
+          {
+            header: "Flag",
+            // Two different problems, two different colours. Red "Disagreement" means the
+            // judges scored it very differently; amber "Needs re-review" means the team
+            // edited it after it was judged, so there is no score to disagree about until it
+            // is reviewed again.
+            cell: ({ row }) =>
+              row.original.needs_reevaluation ? (
+                <Badge variant="warning" className="whitespace-nowrap">
+                  Needs re-review
+                </Badge>
+              ) : row.original.is_flagged ? (
+                <Badge variant="destructive">Disagreement</Badge>
+              ) : null,
+          },
+        ] satisfies ColumnDef<LeaderboardEntry>[])
+      : []),
   ];
 
   return (
     <div>
-      <PageHeader title="Leaderboard" description="Final rankings across all completed reviews" actions={<ExportMenu />} />
+      {/* Export is admin-only server-side, and the report carries per-judge statistics
+          (harsh / lenient / high variance), so the button is not offered to judges. */}
+      <PageHeader
+        title="Leaderboard"
+        description="Final rankings across all completed reviews"
+        actions={isAdmin ? <ExportMenu /> : undefined}
+      />
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative max-w-sm flex-1">
@@ -113,11 +134,13 @@ export function LeaderboardPage() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {sortOptions.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                Sort by {opt.label}
-              </SelectItem>
-            ))}
+            {sortOptions
+              .filter((opt) => isAdmin || !opt.adminOnly)
+              .map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  Sort by {opt.label}
+                </SelectItem>
+              ))}
           </SelectContent>
         </Select>
         <Button variant="outline" onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}>
@@ -131,7 +154,9 @@ export function LeaderboardPage() {
         isLoading={isLoading}
         emptyMessage="No completed reviews yet."
         rowClassName={(row) => cn(row.rank <= 3 && "bg-warning/5")}
-        onRowClick={(row) => navigate(`/admin/submissions/${row.submission_id}`)}
+        // The submission detail page is admin-only, both as a route and as an API. Judges get
+        // no row click rather than one that bounces them to their own dashboard.
+        onRowClick={isAdmin ? (row) => navigate(`/admin/submissions/${row.submission_id}`) : undefined}
       />
 
       {data && data.total_pages > 1 && (

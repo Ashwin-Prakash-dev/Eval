@@ -58,7 +58,12 @@ const adminNav: NavItem[] = [
   { to: "/admin/audit-logs", label: "Audit history", icon: History },
 ];
 
-const judgeNav: NavItem[] = [{ to: "/judge/dashboard", label: "Your reviews", icon: ListChecks }];
+const judgeNav: NavItem[] = [
+  { to: "/judge/dashboard", label: "Your reviews", icon: ListChecks },
+  // The same page as the admin leaderboard; it renders a reduced table for judges and the
+  // server sends them a reduced payload to match.
+  { to: "/judge/leaderboard", label: "Leaderboard", icon: Trophy },
+];
 
 // An admin who follows "Review submissions" into the judge shell would otherwise have no way
 // back except the browser -- this is the same shell, just with an extra link home for the
@@ -130,6 +135,7 @@ export function App() {
           <Route element={<ReviewShell />}>
             <Route path="/judge/dashboard" element={<JudgeDashboardPage />} />
             <Route path="/judge/evaluate/:evaluationId" element={<EvaluationPage />} />
+            <Route path="/judge/leaderboard" element={<LeaderboardPage />} />
           </Route>
         </Route>
 

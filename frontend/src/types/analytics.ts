@@ -56,21 +56,30 @@ export interface CriterionAveragePoint {
   average_score: number;
 }
 
+/**
+ * Judges receive a reduced entry: the fields below marked optional are stripped server-side
+ * for them, because std_dev and is_flagged describe how far the judges diverged from each
+ * other rather than anything about the project. They are optional rather than a separate
+ * type so one table can render both audiences, but the columns must be gated on the viewer's
+ * role, not on the value being present.
+ */
 export interface LeaderboardEntry {
   rank: number;
   submission_id: number;
   project_title: string;
   overall_score: number | null;
   criterion_scores: Record<string, number>;
-  std_dev: number | null;
   reviews_completed: number;
-  is_flagged: boolean;
+  /** Admin only. */
+  std_dev?: number | null;
+  /** Admin only. */
+  is_flagged?: boolean;
   /**
-   * The team edited the submission after it was reviewed. `overall_score` and `std_dev` are
-   * withheld (null) while this is true rather than reporting a figure computed from content
-   * that has since changed; `reviews_completed` counts only the reviews that still apply.
+   * Admin only. The team edited the submission after it was reviewed; `overall_score` and
+   * `std_dev` are withheld (null) while true rather than reporting a figure computed from
+   * content that has since changed.
    */
-  needs_reevaluation: boolean;
+  needs_reevaluation?: boolean;
 }
 
 export interface AnalyticsOverview {
