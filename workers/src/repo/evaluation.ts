@@ -38,28 +38,44 @@ async function attachDetail(
 ): Promise<EvaluationWithDetail[]> {
   if (rows.length === 0) return [];
   const ids = rows.map((r) => r.id);
-  const placeholders = ids.map(() => "?").join(", ");
-
-  const [{ results: scores }, { results: comments }] = await db.batch<
-    ScoreRow | { evaluation_id: number; body: string }
-  >([
-    db
-      .prepare(`SELECT * FROM evaluation_scores WHERE evaluation_id IN (${placeholders}) ORDER BY id`)
-      .bind(...ids),
-    db
-      .prepare(`SELECT evaluation_id, body FROM comments WHERE evaluation_id IN (${placeholders})`)
-      .bind(...ids),
-  ]);
 
   const scoresBy = new Map<number, ScoreRow[]>();
-  for (const s of scores as ScoreRow[]) {
-    const list = scoresBy.get(s.evaluation_id) ?? [];
-    list.push(s);
-    scoresBy.set(s.evaluation_id, list);
-  }
   const commentBy = new Map<number, string>();
-  for (const c of comments as { evaluation_id: number; body: string }[]) {
-    commentBy.set(c.evaluation_id, c.body);
+
+  /**
+   * D1 caps bound parameters per statement, so the ids are chunked rather than sent as one
+   * IN list -- the same cap `byIds` and `membersByTeamIds` chunk for.
+   *
+   * This was unchunked, and the ceiling is per JUDGE, not per event: `listForJudge` passes
+   * every evaluation the judge owns. Once a judge had opened more than ~100 submissions,
+   * both their worklist and their progress query threw, and the dashboard rendered as an
+   * empty event -- no submissions, no counts -- while their saved reviews were untouched.
+   * It therefore stayed invisible until one judge crossed the line late in a real event.
+   */
+  const CHUNK = 90;
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const chunk = ids.slice(i, i + CHUNK);
+    const placeholders = chunk.map(() => "?").join(", ");
+
+    const [{ results: scores }, { results: comments }] = await db.batch<
+      ScoreRow | { evaluation_id: number; body: string }
+    >([
+      db
+        .prepare(`SELECT * FROM evaluation_scores WHERE evaluation_id IN (${placeholders}) ORDER BY id`)
+        .bind(...chunk),
+      db
+        .prepare(`SELECT evaluation_id, body FROM comments WHERE evaluation_id IN (${placeholders})`)
+        .bind(...chunk),
+    ]);
+
+    for (const s of scores as ScoreRow[]) {
+      const list = scoresBy.get(s.evaluation_id) ?? [];
+      list.push(s);
+      scoresBy.set(s.evaluation_id, list);
+    }
+    for (const c of comments as { evaluation_id: number; body: string }[]) {
+      commentBy.set(c.evaluation_id, c.body);
+    }
   }
 
   return rows.map((row) => ({

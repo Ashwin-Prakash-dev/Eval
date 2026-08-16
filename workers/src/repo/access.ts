@@ -165,12 +165,24 @@ export async function secondsSinceLastRequest(
   return row ? secondsSince(row.created_at) : null;
 }
 
+/**
+ * Chunked for the same reason as attachDetail and byIds: D1 caps bound parameters per
+ * statement. The only caller is the bulk approval route, where the email count is whatever
+ * an admin pasted in -- a list of more than ~100 addresses would otherwise throw.
+ */
 export async function usersByEmail(db: D1Database, emails: string[]): Promise<Map<string, User>> {
   if (emails.length === 0) return new Map();
-  const placeholders = emails.map(() => "?").join(", ");
-  const { results } = await db
-    .prepare(`SELECT * FROM users WHERE email IN (${placeholders})`)
-    .bind(...emails)
-    .all<UserRow>();
-  return new Map(results.map((row) => [row.email, toUser(row)]));
+
+  const map = new Map<string, User>();
+  const CHUNK = 90;
+  for (let i = 0; i < emails.length; i += CHUNK) {
+    const chunk = emails.slice(i, i + CHUNK);
+    const placeholders = chunk.map(() => "?").join(", ");
+    const { results } = await db
+      .prepare(`SELECT * FROM users WHERE email IN (${placeholders})`)
+      .bind(...chunk)
+      .all<UserRow>();
+    for (const row of results) map.set(row.email, toUser(row));
+  }
+  return map;
 }
