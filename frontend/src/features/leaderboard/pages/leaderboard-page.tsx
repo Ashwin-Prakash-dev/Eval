@@ -154,9 +154,15 @@ export function LeaderboardPage() {
         isLoading={isLoading}
         emptyMessage="No completed reviews yet."
         rowClassName={(row) => cn(row.rank <= 3 && "bg-warning/5")}
-        // The submission detail page is admin-only, both as a route and as an API. Judges get
-        // no row click rather than one that bounces them to their own dashboard.
-        onRowClick={isAdmin ? (row) => navigate(`/admin/submissions/${row.submission_id}`) : undefined}
+        // Both roles open the submission, but not the same page: the admin one also lists
+        // every judge's evaluation, which is oversight rather than the submission itself.
+        onRowClick={(row) =>
+          navigate(
+            isAdmin
+              ? `/admin/submissions/${row.submission_id}`
+              : `/judge/submissions/${row.submission_id}`
+          )
+        }
       />
 
       {data && data.total_pages > 1 && (

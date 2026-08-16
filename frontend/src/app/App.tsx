@@ -40,6 +40,9 @@ const SubmissionDetailPage = lazy(() =>
 const SubmissionsPage = lazy(() =>
   import("@/features/submissions/pages/submissions-page").then((m) => ({ default: m.SubmissionsPage }))
 );
+const SubmissionViewPage = lazy(() =>
+  import("@/features/submissions/pages/submission-view-page").then((m) => ({ default: m.SubmissionViewPage }))
+);
 const CoveragePage = lazy(() =>
   import("@/features/analytics/pages/coverage-page").then((m) => ({ default: m.CoveragePage }))
 );
@@ -136,6 +139,9 @@ export function App() {
             <Route path="/judge/dashboard" element={<JudgeDashboardPage />} />
             <Route path="/judge/evaluate/:evaluationId" element={<EvaluationPage />} />
             <Route path="/judge/leaderboard" element={<LeaderboardPage />} />
+            {/* Read-only view reached from a leaderboard row. Not the admin detail page,
+                which lists every judge's scores. */}
+            <Route path="/judge/submissions/:id" element={<SubmissionViewPage />} />
           </Route>
         </Route>
 
